@@ -426,6 +426,14 @@ class Scene(private val g: Game) {
             L.box(0f, h * 0.5f + 0.02f, 0f, 0.12f, h + 0.01f, 0.29f, Col.rgb(0xF5EBD2))
             L.pop()
         }
+        L.loadId()
+        if (s.bills >= 2) {
+            val bob = 0.12f * sin(t * 3.2f + i)
+            val csz = 0.55f + min(0.4f, s.bills * 0.012f)
+            SB.quad(px, 1.55f + bob, pz, rX, rY, rZ, uX, uY, uZ, csz * 0.5f, csz * 0.5f, Atlas.COIN, WHITE)
+            val tw = 0.5f + 0.5f * sin(t * 5f + i * 2f)
+            SB.quad(px + 0.55f, 1.0f + 0.2f * tw, pz - 0.2f, rX, rY, rZ, uX, uY, uZ, 0.14f * tw + 0.05f, 0.14f * tw + 0.05f, Atlas.STAR, Col.tint(1f, 0.95f, 0.5f, tw))
+        }
     }
 
     // ------------------------------------------------------------------ people
@@ -585,6 +593,7 @@ class Scene(private val g: Game) {
         Lbl.SPEED -> Col.tint(0.8f, 1f, 1f, 1f)
         Lbl.LUCKY -> Col.tint(1f, 0.6f, 0.85f, 1f)
         Lbl.UNLOCK -> Col.tint(0.6f, 1f, 0.6f, 1f)
+        Lbl.FRENZY -> Col.tint(1f, 0.6f, 0.85f, 1f)
         else -> WHITE
     }
 

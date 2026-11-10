@@ -372,6 +372,15 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
                         }
                     }
                 }
+                if (hud.fest > 0) {
+                    Pill(border = Color(0xFFFF8FC8)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            GIcon(Ic.PARTY, 15.dp)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Dashain Mela ${hud.fest}s  tips x1.5", color = Color(0xFFFFB3DA), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
                 if (hud.gold) {
                     Pill(border = Color(0xFFFFD54A)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

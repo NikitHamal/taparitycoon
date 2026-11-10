@@ -307,6 +307,9 @@ class Game {
     var goldT = 0f
     var goldCd = 40f
     var dblT = 0f
+    var festT = 0f
+    var plateSteamT = 0f
+    var festFx = 0f
     private var achSeen = 0
     private var achInit = false
     private var lvlSeen = 1
@@ -703,6 +706,7 @@ class Game {
         combo = 0
         comboT = 0f
         dashT = 0f
+        festT = 0f
         goldOn = false
         goldCd = 35f
         px = 1f
@@ -879,6 +883,14 @@ class Game {
             if (buildT < 1f && owns()) buildT = min(1f, buildT + dt * 0.45f)
             if (boostT > 0f) boostT -= dt
             if (dblT > 0f) dblT -= dt
+            if (festT > 0f) {
+                festT -= dt
+                festFx -= dt
+                if (festFx <= 0f) {
+                    festFx = 1.1f
+                    confetti(-6f + rnd() * 16f, 3.2f, rnd() * 8f, 8)
+                }
+            }
             if (dashT > 0f) dashT -= dt
             if (dashCdT > 0f) dashCdT -= dt
             dashK += ((if (dashT > 0f) 1f else 0f) - dashK) * min(1f, dt * 9f)
@@ -900,7 +912,7 @@ class Game {
             rushCd -= dt
             if (rushCd <= 0f) {
                 rushCd = 80f + rnd() * 50f
-                if (seatsOpen() >= 4) { if (rnd() < 0.4f) startBlackout() else startRush() }
+                if (seatsOpen() >= 4) { val ev = rnd(); if (ev < 0.28f) startBlackout() else if (ev < 0.62f) startRush() else startFestival() }
             }
             updatePlayer(dt)
             updatePads(dt)
@@ -1275,6 +1287,17 @@ class Game {
                 sfx(Sfx.STEAM, 1f + rnd() * 0.2f, 0.45f)
             }
         }
+        plateSteamT -= dt
+        if (plateSteamT <= 0f) {
+            plateSteamT = 0.55f
+            for (i in Layout.ID_TABLE0 until Layout.ID_TABLE0 + 6) {
+                val t = st[i]
+                if (t.unlocked && t.stockA > 0) {
+                    spawnP(P_STEAM, t.x + (rnd() - 0.5f) * 1.0f, 1.25f, t.z + (rnd() - 0.5f) * 0.6f,
+                        (rnd() - 0.5f) * 0.25f, 0.7f + rnd() * 0.3f, (rnd() - 0.5f) * 0.25f, 1.0f, 0.2f, Col.rgb(0xFFFFFF), 0.0)
+                }
+            }
+        }
         steamT -= dt
         if (steamT <= 0f) {
             steamT = if (mok.raw > 0) 0.09f else 0.42f
@@ -1558,10 +1581,11 @@ class Game {
         combo++
         comboT = comboWindow()
         if (combo > bestCombo) bestCombo = combo
-        var amt = base * mul * (1.0 + 0.25 * rnd()) * (if (darkT > 0f) 1.5 else 1.0) * comboMult() * (if (dblT > 0f) 2.0 else 1.0)
+        var amt = base * mul * (1.0 + 0.25 * rnd()) * (if (darkT > 0f) 1.5 else 1.0) * comboMult() * (if (dblT > 0f) 2.0 else 1.0) * (if (festT > 0f) 1.5 else 1.0)
         if (perfect) {
             amt *= 1.25
             label(c.x, 2.9f, c.z, Lbl.PERFECT)
+            confetti(c.x, 1.9f, c.z, 7)
         }
         if (combo >= 3 && combo % 5 == 0) {
             spawnP(P_COMBO, px, 2.6f, pz, 0f, 1.1f, 0f, 1.5f, 1f, Col.rgb(0xFFB02E), combo.toDouble())
@@ -1601,6 +1625,7 @@ class Game {
         if (boostT > 0f) speedMul += 1f
         if (vlogT > 0f) speedMul += 0.5f
         if (rushT > 0f) speedMul += 1.4f
+        if (festT > 0f) speedMul += 1f
         spawnT -= dt * speedMul
         if (spawnT <= 0f) {
             val seats = seatsOpen()
@@ -2103,6 +2128,17 @@ class Game {
         hap(Hap.THUMP)
     }
 
+    fun startFestival() {
+        festT = 24f
+        festFx = 0f
+        say("Dashain Mela! Crowds and tips x1.5 for 24s")
+        label(px, 2.9f, pz, Lbl.FRENZY)
+        confetti(px, 2f, pz, 40)
+        sfx(Sfx.UNLOCK, 1.2f, 0.9f)
+        sfx(Sfx.BELL, 1f, 0.8f)
+        hap(Hap.SUCCESS)
+    }
+
     fun startRush() {
         rushT = 25f
         spawnT = 0.3f
@@ -2191,7 +2227,8 @@ class Game {
             combo = combo,
             comboFrac = if (combo > 0) (comboT / comboWindow()).coerceIn(0f, 1f) else 0f,
             comboMult = comboMult().toFloat(),
-            dashCd = max(0f, dashCdT - dashDur()),
+            dashCd = max(0f, dashCdT),
+            fest = if (festT > 0f) festT.toInt() else 0,
             dashing = dashT > 0f,
             dashReady = dashT <= 0f && dashCdT <= 0f,
             gold = goldOn,
