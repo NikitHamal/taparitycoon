@@ -4,35 +4,15 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
-
-object Theme {
-    val CLEAR = arrayOf(
-        floatArrayOf(0.55f, 0.78f, 0.95f), floatArrayOf(0.60f, 0.82f, 0.96f),
-        floatArrayOf(0.98f, 0.70f, 0.45f), floatArrayOf(0.10f, 0.07f, 0.22f)
-    )
-    val SUN = arrayOf(
-        floatArrayOf(0.82f, 0.74f, 0.60f), floatArrayOf(0.82f, 0.76f, 0.64f),
-        floatArrayOf(0.86f, 0.60f, 0.38f), floatArrayOf(0.50f, 0.52f, 0.86f)
-    )
-    val SKYAMB = arrayOf(
-        floatArrayOf(0.55f, 0.60f, 0.72f), floatArrayOf(0.58f, 0.62f, 0.72f),
-        floatArrayOf(0.66f, 0.52f, 0.56f), floatArrayOf(0.40f, 0.38f, 0.68f)
-    )
-    val GNDAMB = arrayOf(
-        floatArrayOf(0.42f, 0.38f, 0.34f), floatArrayOf(0.44f, 0.40f, 0.36f),
-        floatArrayOf(0.46f, 0.34f, 0.30f), floatArrayOf(0.28f, 0.22f, 0.38f)
-    )
-    val FLOOR_A = intArrayOf(Col.rgb(0xA5A9AD), Col.rgb(0xF0E8D6), Col.rgb(0xB07A4C), Col.rgb(0x3A3F66))
-    val FLOOR_B = intArrayOf(Col.rgb(0x92969B), Col.rgb(0xD6C8AC), Col.rgb(0x9C693E), Col.rgb(0x2E3254))
-    val WALL = intArrayOf(Col.rgb(0xCC7A4E), Col.rgb(0xE8D8B6), Col.rgb(0x6F8191), Col.rgb(0x2A2250))
-    val ACCENT = intArrayOf(Col.rgb(0xF2B134), Col.rgb(0xCC3B2E), Col.rgb(0xF6E3A1), Col.rgb(0xFFC247))
-}
+import kotlin.math.sqrt
 
 class Scene(private val g: Game) {
     private lateinit var L: LitBatch
     private lateinit var SG: SpriteBatch
     private lateinit var SB: SpriteBatch
     private lateinit var SO: SpriteBatch
+    private val rig = Rig()
+    private val city = City(g)
     private var t = 0f
     private var rX = 1f
     private var rY = 0f
@@ -60,24 +40,24 @@ class Scene(private val g: Game) {
     private val GREEN = Col.rgb(0x3FAF55)
     private val BILL_RED = Col.rgb(0xD9483B)
     private val CLAY = Col.rgb(0xB5703A)
-    private val EYE = Col.rgb(0x1B1B22)
     private val SHOE = Col.rgb(0x2B2B33)
     private val ALU = Col.rgb(0xD0D6DC)
     private val ALU2 = Col.rgb(0xB5BDC6)
     private val POT = Col.rgb(0x2A2A2E)
     private val JHOL_COL = Col.emis(0xE0391F, 170)
     private val FIRE = Col.emis(0xFF8A1F, 60)
-    private val TOPI = Col.rgb(0xD9362B)
     private val TOPI2 = Col.rgb(0x1F1F28)
-    private val BAG = Col.rgb(0x2E86C1)
     private val ORANGE = Col.rgb(0xF28C28)
     private val HAT = Col.rgb(0xE9D79B)
     private val HELMET = Col.rgb(0x1C1C20)
     private val VISOR = Col.rgb(0xFFC93C)
     private val PINKHAIR = Col.rgb(0xFF6FB5)
-    private val SCARF = Col.rgb(0x7E3FB5)
-    private val GLOW = Col.emis(0x7AE0FF, 60)
-    private val LIGHT = Col.emis(0xFFE08A, 40)
+    private val ACCS = intArrayOf(
+        Col.rgb(0xD6382F), Col.rgb(0x2E6FD8), Col.rgb(0xF2B134), Col.rgb(0x3FAF55),
+        Col.rgb(0x8E44AD), Col.rgb(0xF28C28), Col.rgb(0x1ABC9C), Col.rgb(0xE84393)
+    )
+    private val TOPIS = intArrayOf(Col.rgb(0xD9362B), Col.rgb(0x1F1F28), Col.rgb(0xE98A1F), Col.rgb(0x3A3F8F))
+    private val TSKIN = intArrayOf(Col.rgb(0xF6D2B5), Col.rgb(0xF2C6A0), Col.rgb(0xFFDDC4), Col.rgb(0xE9B98F))
 
     fun draw(lit: LitBatch, sg: SpriteBatch, sb: SpriteBatch, so: SpriteBatch, view: FloatArray) {
         L = lit; SG = sg; SB = sb; SO = so
@@ -88,13 +68,19 @@ class Scene(private val g: Game) {
         gRX = cos(yaw); gRZ = -sin(yaw)
         gUX = -sin(yaw); gUZ = -cos(yaw)
         L.reset(); SG.reset(); SB.reset(); SO.reset()
-        drawWorld()
+        rig.L = L
+        rig.t = t
+        city.draw(L, SB, rig, t)
         for (i in 0 until Game.NST) drawStation(i)
         drawCustomers()
         drawStaff()
-        drawPlayer()
+        if (!g.paused) drawPlayer()
         drawParticles()
+        if (!g.paused) drawGuide()
+        drawBubbles()
     }
+
+    private fun vis(x: Float, z: Float): Boolean = g.paused || (abs(x - g.px) < 11f && abs(z - g.pz) < 17f)
 
     // ------------------------------------------------------------------ helpers
     private fun shadow(x: Float, z: Float, size: Float, a: Float = 0.38f) {
@@ -139,92 +125,17 @@ class Scene(private val g: Game) {
         }
     }
 
-    // ------------------------------------------------------------------ world
-    private fun drawWorld() {
-        val loc = g.loc
-        val fa = Theme.FLOOR_A[loc]
-        val fb = Theme.FLOOR_B[loc]
-        for (ix in 0 until 11) {
-            for (iz in 0 until 9) {
-                L.plane(-8.5f + ix * 2f, 0f, -7f + iz * 2f, 2f, 2f, if (((ix + iz) and 1) == 0) fa else fb)
-            }
-        }
-        // sidewalk + road
-        L.plane(1.5f, 0f, 11.9f, 40f, 3.8f, Col.rgb(0xB9B6AE))
-        L.plane(1.5f, 0f, 17.4f, 40f, 7.2f, Col.rgb(0x4A4D52))
-        for (k in 0 until 9) L.box(-9f + k * 3f, 0.02f, 17f, 1.4f, 0.03f, 0.18f, Col.rgb(0xEDE6C8))
-        L.box(1.5f, 0.1f, 13.85f, 40f, 0.2f, 0.25f, Col.rgb(0x9A978F))
-        val wall = Theme.WALL[loc]
-        val acc = Theme.ACCENT[loc]
-        // back wall + trim
-        L.box(1.5f, 1.6f, -8.3f, 24f, 3.2f, 0.6f, wall)
-        L.box(1.5f, 3.25f, -8.3f, 24.4f, 0.2f, 0.8f, acc)
-        L.box(1.5f, 0.15f, -7.95f, 24f, 0.3f, 0.2f, Col.rgb(0x5A4636))
-        // side walls
-        L.box(-9.8f, 1.0f, 1.0f, 0.5f, 2.0f, 19.2f, wall)
-        L.box(-9.8f, 2.05f, 1.0f, 0.7f, 0.12f, 19.2f, acc)
-        L.box(12.4f, 0.45f, 1.0f, 0.3f, 0.9f, 19.2f, acc)
-        // windows
-        for (k in 0 until 5) {
-            L.box(-6f + k * 4.5f, 2.0f, -7.95f, 1.5f, 1.0f, 0.08f, Col.emis(0x9AD7F5, 110))
-            L.box(-6f + k * 4.5f, 2.0f, -7.9f, 1.6f, 0.08f, 0.1f, WHITE)
-        }
-        when (loc) {
-            0 -> {
-                L.push()
-                L.translate(1.5f, 3.0f, -7.3f)
-                L.rotX(-0.45f)
-                for (k in 0 until 12) L.box(-11f + k * 2f, 0f, 0.7f, 1.0f, 0.07f, 1.5f, if (k % 2 == 0) Col.rgb(0x2E6FB7) else WHITE)
-                L.pop()
-                for (k in 0 until 12) {
-                    val on = if (((t * 2f).toInt() + k) % 7 == 0) 0.4f else 1f
-                    L.sphLo(-8f + k * 1.9f, 3.0f - 0.12f * sin(k * 1.7f), -7.2f, 0.1f, 0.1f, 0.1f, Col.emis(0xFFE08A, (40 * on).toInt()))
-                }
-            }
-            1 -> {
-                L.box(1.5f, 2.9f, -7.8f, 20f, 0.5f, 0.5f, Col.rgb(0x8D969E))
-                for (k in 0 until 20) L.box(-8f + k, 2.9f, -7.52f, 0.95f, 0.38f, 0.05f, Col.rgb(0xA8B1B9))
-                L.box(1.5f, 3.7f, -8.2f, 8f, 1.0f, 0.3f, Col.rgb(0xCC3B2E))
-                L.box(1.5f, 3.7f, -8.0f, 7.4f, 0.7f, 0.1f, Col.emis(0xFFE9A8, 80))
-                L.box(-9f, 0.35f, 8.2f, 1.2f, 0.7f, 1.2f, Col.rgb(0x4D8F4D))
-                L.sph(-9f, 1.0f, 8.2f, 0.6f, 0.6f, 0.6f, Col.rgb(0x3E7E3E))
-            }
-            2 -> {
-                for (k in 0 until 10) {
-                    val h = 3f + ((k * 7) % 5) * 1.3f
-                    L.box(-12f + k * 3.1f, h / 2f, -13f, 2.4f, h, 2f, Col.rgb(0x4A5A7A))
-                    L.box(-12f + k * 3.1f, h * 0.7f, -11.95f, 0.5f, 0.35f, 0.05f, Col.emis(0xFFE08A, 50))
-                }
-                for (k in 0 until 14) {
-                    val on = if (((t * 3f).toInt() + k) % 5 == 0) 0.5f else 1f
-                    L.sphLo(-9f + k * 1.6f, 3.1f - 0.2f * sin(k * 1.3f), -7.2f, 0.11f, 0.11f, 0.11f, Col.emis(0xFFD27A, (40 * on).toInt()))
-                }
-                L.box(1.5f, 0.55f, 11.0f, 22f, 0.12f, 0.2f, Col.rgb(0x8A97A3))
-                for (k in 0 until 12) L.box(-9f + k * 2f, 0.3f, 11.0f, 0.12f, 0.6f, 0.12f, Col.rgb(0x8A97A3))
-            }
-            3 -> {
-                for (k in 0 until 10) {
-                    val h = 5f + ((k * 5) % 7) * 1.6f
-                    L.box(-12f + k * 3.1f, h / 2f, -13f, 2.4f, h, 2f, Col.rgb(0x1E1B45))
-                    for (r in 0 until 4) L.box(-12.6f + k * 3.1f + (r % 2) * 1.2f, 1.4f + (r / 2) * 1.8f, -11.95f, 0.4f, 0.5f, 0.05f, Col.emis(0xFFF0A0, 40))
-                }
-                L.box(1.5f, 3.9f, -8.0f, 12f, 0.5f, 0.2f, Col.emis(0xFF3DAA, 30))
-                L.box(1.5f, 3.35f, -8.0f, 9f, 0.18f, 0.2f, Col.emis(0x3DE8FF, 30))
-                L.cyl(-9.3f, 1.6f, -7.5f, 0.35f, 3.2f, Col.rgb(0xE8B93A))
-                L.cyl(12.0f, 1.6f, -7.5f, 0.35f, 3.2f, Col.rgb(0xE8B93A))
-            }
-        }
-    }
-
     // ------------------------------------------------------------------ stations
     private fun drawStation(i: Int) {
         val s = g.st[i]
         val x = s.x
         val z = s.z
+        if (!s.avail) return
         if (!s.unlocked) {
             drawPad(i, s)
             return
         }
+        if (s.kind == SK.BUILDING) return
         val k = s.kind
         val pulse = 0.5f + 0.5f * sin(t * 3f + i)
         val inZone = run {
@@ -311,20 +222,30 @@ class Scene(private val g: Game) {
         val hz = Layout.HZ[i]
         val frac = if (s.cost > 0.0) (s.paid / s.cost).toFloat().coerceIn(0f, 1f) else 0f
         val active = abs(g.px - s.x) < hx && abs(g.pz - s.z) < hz
+        val remain = s.cost - s.paid
+        val afford = g.money >= remain
+        val pulse = 0.5f + 0.5f * sin(t * 4f + i)
+        val big = s.kind == SK.BUILDING
         L.loadId()
         L.translate(s.x, 0f, s.z)
-        L.box(0f, 0.03f, 0f, 2f * hx + 0.18f, 0.06f, 2f * hz + 0.18f, if (active) Col.rgb(0xFFE58A) else WHITE)
+        val border = if (active) Col.rgb(0xFFE58A) else if (afford) Col.emis(0xFFD54A, (110 + 120 * pulse).toInt()) else WHITE
+        L.box(0f, 0.03f, 0f, 2f * hx + 0.2f, 0.06f, 2f * hz + 0.2f, border)
         L.box(0f, 0.045f, 0f, 2f * hx, 0.07f, 2f * hz, DARK)
         if (frac > 0f) L.box(-hx + hx * frac, 0.075f, 0f, 2f * hx * frac, 0.03f, 2f * hz - 0.1f, Col.emis(0x1F7A3A, 150))
+        if (active && g.padDwellT > 0f) {
+            val f = (g.padDwellT / 0.4f).coerceIn(0f, 1f)
+            L.box(-hx + hx * f, 0.1f, hz - 0.2f, 2f * hx * f, 0.04f, 0.14f, Col.emis(0xFFE58A, 150))
+        }
         val icon = when (s.kind) {
             SK.TABLE -> Atlas.I_TABLE
             SK.KETTLE -> Atlas.I_KETTLE
+            SK.BUILDING -> Atlas.I_BUILD
             else -> Atlas.I_BENCH
         }
         val bob = if (active) 0.05f else 0f
-        gIcon(icon, s.x, 0.12f + bob, s.z - hz * 0.22f, min(1.6f, hz * 1.35f), WHITE)
-        val remain = s.cost - s.paid
-        num(SG, true, remain, s.x, 0.12f, s.z + hz * 0.58f, 0.62f, if (active) Col.rgb(0xFFE58A) else WHITE, true)
+        val isz = if (big) 3.4f else min(1.6f, hz * 1.35f)
+        gIcon(icon, s.x, 0.12f + bob, s.z - hz * (if (big) 0.12f else 0.22f), isz, WHITE)
+        num(SG, true, remain, s.x, 0.12f, s.z + hz * (if (big) 0.66f else 0.58f), if (big) 0.95f else 0.62f, if (active) Col.rgb(0xFFE58A) else WHITE, true)
     }
 
     private fun drawMoktu(s: Station, inZone: Boolean, pulse: Float) {
@@ -499,100 +420,339 @@ class Scene(private val g: Game) {
     }
 
     // ------------------------------------------------------------------ people
-    private fun leg(side: Float, sw: Float, seated: Boolean, pants: Int) {
-        L.push()
-        L.translate(side * 0.15f, 0.72f, 0f)
-        if (seated) {
-            L.rotX(-1.5f)
-            L.box(0f, -0.18f, 0f, 0.2f, 0.36f, 0.22f, pants)
-            L.translate(0f, -0.36f, 0f)
-            L.rotX(1.5f)
-            L.box(0f, -0.2f, 0f, 0.2f, 0.4f, 0.22f, pants)
-            L.box(0f, -0.42f, 0.06f, 0.22f, 0.1f, 0.32f, SHOE)
-        } else {
-            L.rotX(sw * side)
-            L.box(0f, -0.34f, 0f, 0.2f, 0.68f, 0.22f, pants)
-            L.box(0f, -0.7f, 0.05f, 0.22f, 0.1f, 0.32f, SHOE)
+    private fun custLook(c: Cust, i: Int) {
+        val r = rig
+        r.skin = c.skin; r.hair = c.hair; r.shirt = c.shirt; r.pants = c.pants
+        r.shoe = SHOE
+        r.hatCol = WHITE
+        r.accent = ACCS[(c.look + i) and 7]
+        r.hairStyle = HairS.SHORT
+        r.hat = HatS.NONE
+        r.acc = 0
+        when (c.type) {
+            CT.STUDENT -> {
+                r.hat = HatS.HOOD
+                r.acc = if ((c.look and 1) == 0) (Acc.PACK or Acc.GLASSES) else Acc.PACK
+            }
+            CT.VLOGGER -> {
+                r.hairStyle = HairS.POMP
+                r.hair = PINKHAIR
+                r.acc = Acc.RING
+                r.accent = Col.rgb(0x8E44AD)
+            }
+            CT.BIKER -> {
+                r.hat = HatS.HELMET
+                r.hatCol = HELMET
+                r.acc = Acc.JACKET
+                r.accent = VISOR
+                r.pants = DARK
+                r.shoe = Col.rgb(0x3A3A44)
+            }
+            CT.TOURIST -> {
+                r.hat = HatS.SUN
+                r.hatCol = HAT
+                r.acc = Acc.PACK or Acc.CAMERA
+                r.accent = Col.rgb(0x2FB5A8)
+                r.skin = TSKIN[c.look and 3]
+                r.hairStyle = if (c.look > 3) HairS.SWOOP else HairS.BUN
+                r.hair = if (c.look > 3) Col.rgb(0xC98F3A) else Col.rgb(0x7A4A22)
+            }
+            else -> when (c.look) {
+                0 -> { r.hat = HatS.TOPI; r.hatCol = TOPIS[(i) and 3] }
+                1 -> { r.hairStyle = HairS.SWOOP; r.acc = Acc.TIE }
+                2 -> { r.hairStyle = HairS.LONG; r.acc = Acc.SCARF or Acc.KURTA }
+                3 -> { r.hat = HatS.CAP; r.hatCol = r.accent }
+                4 -> { r.hairStyle = HairS.BRAID; r.acc = Acc.KURTA }
+                5 -> { r.acc = Acc.GLASSES }
+                6 -> { r.hairStyle = HairS.BUN; r.acc = Acc.SCARF }
+                else -> { r.hairStyle = HairS.NONE; r.hat = HatS.TOPI; r.hatCol = TOPIS[(i + 1) and 3]; r.acc = Acc.GLASSES or Acc.KURTA }
+            }
         }
-        L.pop()
     }
 
-    private fun arm(side: Float, ang: Float, shirt: Int, skin: Int) {
-        L.push()
-        L.translate(side * 0.38f, 1.34f, 0f)
-        L.rotX(ang)
-        L.box(0f, -0.26f, 0f, 0.15f, 0.52f, 0.15f, shirt)
-        L.sph(0f, -0.56f, 0f, 0.09f, 0.09f, 0.09f, skin)
-        L.pop()
+    private fun drawCustomers() {
+        for (i in 0 until Game.MAXC) {
+            val c = g.cs[i]
+            if (!c.active) continue
+            if (!vis(c.x, c.z)) continue
+            val seated = c.state == Game.CS_WAIT || c.state == Game.CS_EAT || c.state == Game.CS_CAMP
+            val moving = c.state == Game.CS_TO_QUEUE || c.state == Game.CS_TO_SEAT || c.state == Game.CS_LEAVE
+            var y0 = 0f
+            var spin = 0f
+            if (c.state == Game.CS_FLIP) {
+                y0 = abs(sin(c.flip * 11f)) * 0.5f
+                spin = c.flip * 14f
+            }
+            shadow(c.x, c.z, 1.1f)
+            custLook(c, i)
+            val r = rig
+            var arm = Pose.WALK
+            var mood = 0
+            val phoney = c.type == CT.VLOGGER || (c.type == CT.STUDENT && (c.look and 1) == 0)
+            when (c.state) {
+                Game.CS_WAIT -> { mood = if (c.patience < c.patMax * 0.3f) 2 else 0; if (phoney) arm = Pose.PHONE }
+                Game.CS_EAT -> {
+                    if (c.wantJhol) {
+                        arm = Pose.YELL
+                        mood = if (c.jholAnger > 0.6f) 2 else 3
+                    } else {
+                        arm = Pose.EAT
+                        mood = 4
+                    }
+                }
+                Game.CS_CAMP -> { arm = if (phoney) Pose.PHONE else Pose.WALK; mood = if (sin(t * 7f + i) > 0.2f) 4 else 1 }
+                Game.CS_FLIP -> { arm = Pose.ANGRY; mood = 2 }
+                Game.CS_LEAVE -> { if (c.angry) { arm = Pose.ANGRY; mood = 2 } else mood = 1 }
+                Game.CS_QUEUE -> { if (phoney) arm = Pose.PHONE; mood = if (c.timer > 18f) 2 else 0 }
+                Game.CS_TO_QUEUE, Game.CS_TO_SEAT -> if (c.type == CT.VLOGGER) arm = Pose.PHONE
+            }
+            if (c.cheer > 0f) { arm = Pose.CHEER; mood = 1 }
+            r.heading = c.heading
+            r.phase = c.walk
+            r.mv = if (moving) 1f else 0f
+            r.seated = seated
+            r.arm = arm
+            r.spin = spin
+            r.mood = mood
+            r.seed = i * 1.37f
+            r.hop = 0f
+            r.lookX = 0f
+            r.person(c.x, y0, c.z)
+            if (c.type >= CT.VLOGGER && c.bubble < 0) {
+                val sc = 0.3f + 0.05f * sin(t * 5f + i)
+                bIcon(SB, Atlas.STAR, c.x, 2.85f + 0.1f * sin(t * 3f + i), c.z, sc * 2f, Col.tint(1f, 0.85f, 0.25f, 1f))
+            }
+        }
     }
 
-    /** armMode: 0 swing, 1 forward (carrying), 2 eating. style: see switch below. */
-    private fun person(
-        x: Float, y0: Float, z: Float, heading: Float, phase: Float, mv: Float, seated: Boolean,
-        shirt: Int, pants: Int, skin: Int, hair0: Int, style: Int, armMode: Int, spin: Float
-    ) {
-        val sw = sin(phase) * 0.75f * mv
-        val bob = if (seated) 0f else abs(sin(phase)) * 0.07f * mv
-        val dy = if (seated) -0.27f else 0f
-        val hair = if (style == 3) PINKHAIR else hair0
-        L.push()
-        L.translate(x, y0 + bob + dy, z)
-        L.rotY(heading + spin)
-        leg(-1f, sw, seated, pants)
-        leg(1f, sw, seated, pants)
-        L.box(0f, 1.08f, 0f, 0.56f, 0.62f, 0.34f, shirt)
-        val a1: Float
-        val a2: Float
-        when (armMode) {
-            1 -> { a1 = -1.35f; a2 = -1.35f }
-            2 -> { a1 = -0.9f + 0.35f * sin(t * 9f); a2 = -0.3f }
-            else -> { a1 = sw * 1.1f; a2 = -sw * 1.1f }
-        }
-        arm(-1f, a1, shirt, skin)
-        arm(1f, a2, shirt, skin)
-        L.sph(0f, 1.64f, 0f, 0.27f, 0.29f, 0.27f, skin)
-        L.sph(0f, 1.72f, -0.03f, 0.285f, 0.2f, 0.285f, hair)
-        L.box(-0.09f, 1.66f, 0.245f, 0.05f, 0.07f, 0.03f, EYE)
-        L.box(0.09f, 1.66f, 0.245f, 0.05f, 0.07f, 0.03f, EYE)
-        when (style) {
-            0 -> {
-                L.box(0f, 1.0f, 0.18f, 0.5f, 0.55f, 0.04f, WHITE)
-                L.cyl(0f, 1.95f, 0f, 0.25f, 0.2f, TOPI)
-                L.cyl(0f, 1.9f, 0f, 0.256f, 0.06f, TOPI2)
+    private fun drawStaff() {
+        for (k in 0 until g.staffN) {
+            val s = g.staff[k]
+            if (!s.active) continue
+            if (!vis(s.x, s.z)) continue
+            shadow(s.x, s.z, 1.1f)
+            val r = rig
+            r.skin = Game.SKINS[(k * 3 + 1) % 4]
+            r.hair = Game.HAIRS[k % 4]
+            r.pants = Game.PANTS[k % 4]
+            r.shoe = SHOE
+            r.hairStyle = HairS.SHORT
+            r.hat = HatS.NONE
+            r.acc = 0
+            when (s.role) {
+                Role.KANCHA -> {
+                    r.shirt = Game.STAFF_COL[0]; r.hat = HatS.CHEF; r.accent = WHITE; r.acc = Acc.APRON
+                }
+                Role.JHOL -> {
+                    r.shirt = Game.STAFF_COL[1]; r.hat = HatS.BANDANA; r.hatCol = RED; r.accent = Col.rgb(0x8E1B1B); r.acc = Acc.APRON
+                }
+                Role.DIDI -> {
+                    r.shirt = Game.STAFF_COL[2]; r.hairStyle = HairS.BRAID; r.accent = Col.rgb(0xFF8FC8); r.acc = Acc.KURTA or Acc.SCARF
+                }
+                else -> {
+                    r.shirt = Col.rgb(0x9CC4F0); r.hat = HatS.TOPI; r.hatCol = TOPI2; r.accent = Col.rgb(0xD6382F); r.acc = Acc.GLASSES or Acc.TIE
+                }
             }
-            2 -> {
-                L.sph(0f, 1.6f, -0.1f, 0.34f, 0.32f, 0.3f, shirt)
-                L.box(0f, 1.12f, -0.27f, 0.42f, 0.5f, 0.2f, BAG)
-            }
-            3 -> {
-                L.box(0f, 1.67f, 0.26f, 0.34f, 0.07f, 0.03f, EYE)
-                L.box(0.5f, 1.45f, 0.35f, 0.08f, 0.3f, 0.08f, DARK)
-                L.box(0.5f, 1.65f, 0.35f, 0.22f, 0.14f, 0.04f, GLOW)
-            }
-            4 -> {
-                L.sph(0f, 1.72f, 0f, 0.32f, 0.28f, 0.32f, HELMET)
-                L.box(0f, 1.66f, 0.26f, 0.4f, 0.1f, 0.08f, VISOR)
-            }
-            5 -> {
-                L.cyl(0f, 1.95f, 0f, 0.5f, 0.04f, HAT)
-                L.cyl(0f, 2.03f, 0f, 0.26f, 0.15f, HAT)
-                L.box(0f, 1.15f, -0.3f, 0.5f, 0.65f, 0.28f, ORANGE)
-            }
-            6 -> L.cyl(0f, 1.82f, 0f, 0.285f, 0.07f, RED)
-            7 -> {
-                L.sph(0f, 1.8f, 0f, 0.3f, 0.17f, 0.3f, RED)
-                L.box(0f, 1.76f, 0.28f, 0.3f, 0.04f, 0.16f, RED)
-            }
-            8 -> {
-                L.box(0f, 1.4f, -0.18f, 0.42f, 0.7f, 0.1f, hair0)
-                L.box(0f, 1.15f, 0f, 0.6f, 0.1f, 0.4f, SCARF)
-            }
-            9 -> {
-                L.box(0f, 1.67f, 0.26f, 0.32f, 0.06f, 0.03f, EYE)
-                L.box(0f, 1.1f, 0.18f, 0.08f, 0.4f, 0.03f, RED)
+            val working = s.state != 0 && !s.moving
+            r.heading = s.heading
+            r.phase = s.walk
+            r.mv = if (s.moving) 1f else 0f
+            r.seated = false
+            r.arm = if (s.n > 0) Pose.CARRY else if (working) Pose.WORK else Pose.WALK
+            r.spin = 0f
+            r.mood = 1
+            r.seed = k * 2.1f + 5f
+            r.hop = 0f
+            r.lookX = 0f
+            r.person(s.x, 0f, s.z)
+            if (s.n > 0) {
+                var y = 1.0f
+                for (n in 0 until s.n) {
+                    L.loadId()
+                    L.translate(s.x + sin(s.heading) * 0.6f, y, s.z + cos(s.heading) * 0.6f)
+                    L.rotY(s.heading)
+                    drawItem(s.item, true)
+                    y += itemStep(s.item)
+                }
             }
         }
-        L.pop()
+    }
+
+    private fun drawPlayer() {
+        val h = g.heading
+        shadow(g.px, g.pz, 1.2f)
+        val pulse = 1f + 0.06f * sin(g.ringPulse)
+        SG.quad(g.px, 0.05f, g.pz, gRX, 0f, gRZ, gUX, 0f, gUZ, 1.35f * pulse, 1.35f * pulse, Atlas.RING, Col.tint(0.25f, 1f, 0.4f, 1f))
+        SG.quad(g.px, 0.048f, g.pz, gRX, 0f, gRZ, gUX, 0f, gUZ, 1.15f, 1.15f, Atlas.SOFT, Col.tint(0.2f, 0.9f, 0.35f, 0.35f))
+        val r = rig
+        r.skin = Col.rgb(0xE8B48A)
+        r.hair = Col.rgb(0x1E1A18)
+        r.shirt = WHITE
+        r.pants = Col.rgb(0x2C3E50)
+        r.shoe = Col.rgb(0xEDEDED)
+        r.accent = RED
+        r.hatCol = TOPI2
+        r.hairStyle = HairS.SHORT
+        r.hat = HatS.TOPI
+        r.acc = Acc.APRON
+        r.heading = h
+        r.phase = g.walkPhase
+        r.mv = g.moveAmt
+        r.seated = false
+        r.arm = if (g.carryN > 0) Pose.CARRY else Pose.WALK
+        r.spin = 0f
+        r.mood = if (g.chainT > 0f) 1 else 0
+        r.seed = 0.5f
+        r.hop = if (g.pickPulse > 0f) g.pickPulse * 0.12f else 0f
+        r.lookX = 0f
+        r.person(g.px, 0f, g.pz)
+        if (g.carryN > 0) {
+            val n = g.carryN
+            var total = 0f
+            for (k in 0 until n) total += itemStep(g.carry[k])
+            val ks = if (total > 3.2f) 3.2f / total else 1f
+            val bx = g.px + sin(h) * 0.66f
+            val bz = g.pz + cos(h) * 0.66f
+            var y = 1.0f
+            for (k in 0 until n) {
+                val it = g.carry[k]
+                val f = (k + 1) * 0.07f
+                L.loadId()
+                L.translate(bx + g.swayX * (k + 1) * 0.55f, y, bz + g.swayZ * (k + 1) * 0.55f)
+                L.rotY(h + sin(t * 3f + k) * 0.02f * f)
+                drawItem(it, n <= 8 || k >= n - 3)
+                y += itemStep(it) * ks
+            }
+            if (n >= g.carryCap()) {
+                bIcon(SO, Atlas.I_ARROW, g.px, y + 0.9f + 0.1f * sin(t * 6f), g.pz, 0.7f, WHITE)
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ guidance arrow
+    private fun nearestNeeding(first: Int, count: Int, bench: Boolean): Int {
+        var best = -1
+        var bd = 1e9f
+        for (i in first until first + count) {
+            val s = g.st[i]
+            if (!s.unlocked) continue
+            var occ = 0
+            if (s.occ0 >= 0) occ++
+            if (s.occ1 >= 0) occ++
+            if (occ > s.stockA) {
+                val dx = s.x - g.px
+                val dz = s.z - g.pz
+                val d = dx * dx + dz * dz
+                if (d < bd) { bd = d; best = i }
+            }
+        }
+        return best
+    }
+
+    private fun guideTarget(): Int {
+        val b = g.st[Layout.ID_BUILDING]
+        if (b.avail && !b.unlocked && g.money >= b.cost - b.paid) return Layout.ID_BUILDING
+        if (g.carryN > 0) {
+            return when (g.carry[g.carryN - 1]) {
+                Item.PLATE -> nearestNeeding(Layout.ID_TABLE0, 6, false)
+                Item.CUP -> nearestNeeding(Layout.ID_BENCH0, 4, true)
+                Item.MAIDA, Item.MEAT -> Layout.ID_PREP
+                Item.JHOL -> Layout.ID_CAULDRON
+                else -> -1
+            }
+        }
+        val cd = g.st[Layout.ID_CAULDRON]
+        if (g.jholAlert || cd.level < Game.JHOL_DRAW * 2f) return Layout.ID_JHOL
+        var best = -1
+        var bb = 5
+        for (i in 0 until Game.NST) {
+            val s = g.st[i]
+            if (s.unlocked && s.bills >= bb) { bb = s.bills; best = i }
+        }
+        if (best >= 0) return best
+        if (g.st[Layout.ID_MOKTU].stockA > 0) return Layout.ID_MOKTU
+        val prep = g.st[Layout.ID_PREP]
+        if (prep.stockA <= prep.stockB && prep.stockA < Game.PREP_CAP) return Layout.ID_MAIDA
+        if (prep.stockB < Game.PREP_CAP) return Layout.ID_MEAT
+        var cheap = -1
+        var cc = 1e18
+        for (i in 0 until Game.NST) {
+            val s = g.st[i]
+            if (s.avail && !s.unlocked && g.money >= s.cost - s.paid && s.cost < cc) { cc = s.cost; cheap = i }
+        }
+        return cheap
+    }
+
+    private fun drawGuide() {
+        val id = guideTarget()
+        if (id < 0) return
+        val s = g.st[id]
+        val big = s.kind == SK.BUILDING
+        val y = (if (big) 2.6f else 4.7f) + 0.25f * sin(t * 5f)
+        bIcon(SO, Atlas.I_ARROW, s.x, y, s.z, 0.9f, Col.tint(1f, 0.9f, 0.3f, 1f))
+    }
+
+    // ------------------------------------------------------------------ speech bubbles (priority + de-cluttered)
+    private val cMark = BooleanArray(Game.MAXC)
+    private val pX = FloatArray(10)
+    private val pZ = FloatArray(10)
+    private val pL = IntArray(10)
+
+    private fun bubbleScore(c: Cust): Float {
+        var s = when (c.bubble) {
+            Bub.JHOL -> 100f + c.jholAnger * 60f
+            Bub.ANGRY -> 95f
+            Bub.VLOG, Bub.BIKE, Bub.TOUR -> 70f
+            Bub.MOMO, Bub.CHIYA -> 40f + (if (c.state == Game.CS_WAIT) (1f - c.patience / c.patMax) * 40f else 0f)
+            Bub.HAPPY, Bub.SURYA -> 35f
+            Bub.THANKS, Bub.NAMASTE -> 15f
+            else -> 20f
+        }
+        val dx = c.x - g.px
+        val dz = c.z - g.pz
+        s -= sqrt(dx * dx + dz * dz) * 1.2f
+        return s
+    }
+
+    private fun drawBubbles() {
+        for (i in 0 until Game.MAXC) cMark[i] = false
+        var placed = 0
+        var tries = 0
+        while (placed < 7 && tries < 16) {
+            tries++
+            var best = -1
+            var bs = -1e9f
+            for (i in 0 until Game.MAXC) {
+                val c = g.cs[i]
+                if (!c.active || c.bubble < 0 || cMark[i] || !vis(c.x, c.z)) continue
+                val s = bubbleScore(c)
+                if (s > bs) { bs = s; best = i }
+            }
+            if (best < 0) break
+            cMark[best] = true
+            val c = g.cs[best]
+            var lvl = 0
+            for (k in 0 until placed) {
+                val dx = pX[k] - c.x
+                val dz = pZ[k] - c.z
+                if (dx * dx + dz * dz < 2.25f && pL[k] >= lvl) lvl = pL[k] + 1
+            }
+            if (lvl >= 2) continue
+            pX[placed] = c.x; pZ[placed] = c.z; pL[placed] = lvl
+            placed++
+            var sc = 0.95f
+            var a = 1f
+            if (c.bubble == Bub.JHOL) sc = 1.0f + 0.1f * sin(g.alertPulse + best)
+            if (c.state == Game.CS_WAIT && c.patience < c.patMax * 0.3f) {
+                a = 0.7f + 0.3f * sin(t * 12f)
+                sc = 1f + 0.08f * sin(t * 12f)
+            }
+            if (c.state == Game.CS_EAT && c.wantJhol && c.jholAnger > 0.6f) sc *= 1f + 0.06f * sin(t * 20f)
+            val seated = c.state == Game.CS_WAIT || c.state == Game.CS_EAT || c.state == Game.CS_CAMP
+            val base = (if (seated) 2.35f else 2.75f) + lvl * 1.0f
+            val hh = 0.5f * sc
+            SO.quad(c.x, base + hh, c.z, rX, rY, rZ, uX, uY, uZ, hh, hh, Atlas.B0 + c.bubble, Col.tint(1f, 1f, 1f, a))
+        }
     }
 
     private fun itemStep(item: Int): Float = when (item) {
@@ -627,109 +787,6 @@ class Scene(private val g: Game) {
             Item.CUP -> {
                 L.cyl(0f, 0.11f, 0f, 0.13f, 0.22f, CLAY)
                 L.cyl(0f, 0.22f, 0f, 0.115f, 0.02f, Col.rgb(0xE9C79B))
-            }
-        }
-    }
-
-    private fun drawPlayer() {
-        val h = g.heading
-        shadow(g.px, g.pz, 1.1f)
-        // glowing green ring
-        val pulse = 1f + 0.06f * sin(g.ringPulse)
-        SG.quad(g.px, 0.05f, g.pz, gRX, 0f, gRZ, gUX, 0f, gUZ, 1.35f * pulse, 1.35f * pulse, Atlas.RING, Col.tint(0.25f, 1f, 0.4f, 1f))
-        SG.quad(g.px, 0.048f, g.pz, gRX, 0f, gRZ, gUX, 0f, gUZ, 1.15f, 1.15f, Atlas.SOFT, Col.tint(0.2f, 0.9f, 0.35f, 0.35f))
-        person(g.px, 0f, g.pz, h, g.walkPhase, g.moveAmt, false, WHITE, Col.rgb(0x2C3E50), Col.rgb(0xE8B48A), HELMET, 0,
-            if (g.carryN > 0) 1 else 0, 0f)
-        if (g.carryN > 0) {
-            val n = g.carryN
-            var total = 0f
-            for (k in 0 until n) total += itemStep(g.carry[k])
-            val ks = if (total > 3.2f) 3.2f / total else 1f
-            val bx = g.px + sin(h) * 0.58f
-            val bz = g.pz + cos(h) * 0.58f
-            var y = 0.95f
-            for (k in 0 until n) {
-                val it = g.carry[k]
-                val f = (k + 1) * 0.07f
-                L.loadId()
-                L.translate(bx + g.swayX * (k + 1) * 0.55f, y, bz + g.swayZ * (k + 1) * 0.55f)
-                L.rotY(h + sin(t * 3f + k) * 0.02f * f)
-                drawItem(it, n <= 8 || k >= n - 3)
-                y += itemStep(it) * ks
-            }
-            if (n >= g.carryCap()) {
-                bIcon(SO, Atlas.I_ARROW, g.px, y + 0.9f + 0.1f * sin(t * 6f), g.pz, 0.7f, WHITE)
-            }
-        }
-    }
-
-    private fun drawStaff() {
-        for (k in 0 until g.staffN) {
-            val s = g.staff[k]
-            if (!s.active) continue
-            shadow(s.x, s.z, 1.0f)
-            val col = Game.STAFF_COL[s.role]
-            val style = when (s.role) {
-                Role.KANCHA -> 6
-                Role.JHOL -> 7
-                Role.DIDI -> 8
-                else -> 9
-            }
-            val skin = Game.SKINS[(k * 3 + 1) % 4]
-            val mv = if (s.moving) 1f else 0f
-            person(s.x, 0f, s.z, s.heading, s.walk, mv, false, col, Game.PANTS[k % 4], skin, Game.HAIRS[k % 4], style,
-                if (s.n > 0) 1 else 0, 0f)
-            if (s.n > 0) {
-                var y = 0.95f
-                for (n in 0 until s.n) {
-                    L.loadId()
-                    L.translate(s.x + sin(s.heading) * 0.55f, y, s.z + cos(s.heading) * 0.55f)
-                    L.rotY(s.heading)
-                    drawItem(s.item, true)
-                    y += itemStep(s.item)
-                }
-            }
-        }
-    }
-
-    private fun drawCustomers() {
-        for (i in 0 until Game.MAXC) {
-            val c = g.cs[i]
-            if (!c.active) continue
-            val seated = c.state == Game.CS_WAIT || c.state == Game.CS_EAT || c.state == Game.CS_CAMP
-            val moving = c.state == Game.CS_TO_QUEUE || c.state == Game.CS_TO_SEAT || c.state == Game.CS_LEAVE
-            val style = when (c.type) {
-                CT.STUDENT -> 2
-                CT.VLOGGER -> 3
-                CT.BIKER -> 4
-                CT.TOURIST -> 5
-                else -> 1
-            }
-            var y0 = 0f
-            var spin = 0f
-            if (c.state == Game.CS_FLIP) {
-                y0 = abs(sin(c.flip * 11f)) * 0.5f
-                spin = c.flip * 14f
-            }
-            shadow(c.x, c.z, 1.0f)
-            val armMode = if (c.state == Game.CS_EAT && !c.wantJhol) 2 else 0
-            person(c.x, y0, c.z, c.heading, c.walk, if (moving) 1f else 0f, seated, c.shirt, c.pants, c.skin, c.hair, style, armMode, spin)
-            if (c.type >= CT.VLOGGER) {
-                val sc = 0.3f + 0.05f * sin(t * 5f + i)
-                bIcon(SB, Atlas.STAR, c.x, 2.25f + 0.1f * sin(t * 3f + i), c.z, sc * 2f, Col.tint(1f, 0.85f, 0.25f, 1f))
-            }
-            if (c.bubble >= 0) {
-                var sc = 1f
-                var a = 1f
-                if (c.bubble == Bub.JHOL) sc = 1f + 0.1f * sin(g.alertPulse + i)
-                if (c.state == Game.CS_WAIT && c.patience < c.patMax * 0.3f) {
-                    a = 0.65f + 0.35f * sin(t * 12f)
-                    sc = 1f + 0.08f * sin(t * 12f)
-                }
-                if (c.state == Game.CS_EAT && c.wantJhol && c.jholAnger > 0.6f) sc *= 1f + 0.06f * sin(t * 20f)
-                val hh = 0.5f * sc
-                val hw = 1.0f * sc
-                SO.quad(c.x, 2.15f + hh, c.z, rX, rY, rZ, uX, uY, uZ, hw, hh, Atlas.B0 + c.bubble, Col.tint(1f, 1f, 1f, a))
             }
         }
     }

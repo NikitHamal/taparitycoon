@@ -36,6 +36,13 @@ object Persist {
         for (i in out.indices) if (i < p.size) out[i] = p[i].toIntOrNull() ?: 0
     }
 
+    fun hasSave(ctx: Context): Boolean =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).contains("savedAt")
+
+    fun wipe(ctx: Context) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().commit()
+    }
+
     fun save(ctx: Context, g: Game) {
         synchronized(g.lock) {
             val e = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
@@ -84,6 +91,7 @@ object Persist {
             for (l in 0 until Locs.COUNT) {
                 readI(p.getString("upg$l", null), g.upg[l])
                 g.padMask[l] = p.getInt("pad$l", Layout.INITIAL_MASK) or Layout.INITIAL_MASK
+                if ((g.padMask[l] and 0x1FE00) != 0) g.padMask[l] = g.padMask[l] or (1 shl Layout.ID_BUILDING)
                 readD(p.getString("paid$l", null), g.padPaid[l])
             }
             g.incomeEma = p.getString("ema", "0")?.toDoubleOrNull() ?: 0.0

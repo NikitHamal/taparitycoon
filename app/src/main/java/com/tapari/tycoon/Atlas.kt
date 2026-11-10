@@ -35,9 +35,10 @@ object Atlas {
     const val I_PREP = 15
     const val I_EXCL = 16
     const val I_ARROW = 17
-    const val G0 = 18
-    const val B0 = 34
-    const val N = 50
+    const val I_BUILD = 18
+    const val G0 = 19
+    const val B0 = 35
+    const val N = 51
 
     val u0 = FloatArray(N)
     val v0 = FloatArray(N)
@@ -59,7 +60,7 @@ object Atlas {
 
     var tex = 0
 
-    private fun sizeW(id: Int): Int = if (id < G0) 128 else if (id < B0) 64 else 256
+    private fun sizeW(id: Int): Int = if (id < G0) 128 else if (id < B0) 64 else 128
     private fun sizeH(id: Int): Int = if (id < G0) 128 else if (id < B0) 96 else 128
 
     fun build() {
@@ -294,6 +295,18 @@ object Atlas {
                 c.drawRoundRect(RectF(56f, 24f, 72f, 74f), 8f, 8f, paint(Color.WHITE))
                 c.drawCircle(cx, 94f, 9f, paint(Color.WHITE))
             }
+            I_BUILD -> {
+                c.drawRoundRect(RectF(14f, 40f, 114f, 118f), 6f, 6f, paint(0xFFE9D6B0.toInt()))
+                c.drawRoundRect(RectF(14f, 40f, 114f, 118f), 6f, 6f, paint(0xFF6B4A2B.toInt(), Paint.Style.STROKE, 5f))
+                for (k in 0 until 6) {
+                    c.drawRect(14f + k * 16.6f, 22f, 14f + (k + 1) * 16.6f, 46f, paint(if (k % 2 == 0) 0xFFD6382F.toInt() else 0xFFFFFFFF.toInt()))
+                }
+                c.drawRect(14f, 22f, 114f, 46f, paint(0xFF6B4A2B.toInt(), Paint.Style.STROKE, 4f))
+                c.drawRoundRect(RectF(50f, 66f, 78f, 118f), 4f, 4f, paint(0xFF8E5B2E.toInt()))
+                c.drawRoundRect(RectF(22f, 58f, 44f, 84f), 4f, 4f, paint(0xFF9AD7F5.toInt()))
+                c.drawRoundRect(RectF(84f, 58f, 106f, 84f), 4f, 4f, paint(0xFF9AD7F5.toInt()))
+                c.drawCircle(72f, 94f, 3.5f, paint(0xFFFFD54A.toInt()))
+            }
             I_ARROW -> {
                 val path = Path()
                 path.moveTo(cx, 120f); path.lineTo(112f, 56f); path.lineTo(80f, 56f); path.lineTo(80f, 8f)
@@ -303,52 +316,205 @@ object Atlas {
         }
     }
 
+    private fun fillStroke(c: Canvas, path: Path, fill: Int, stroke: Int, sw: Float) {
+        c.drawPath(path, paint(fill))
+        val sp = paint(stroke, Paint.Style.STROKE, sw)
+        sp.strokeJoin = Paint.Join.ROUND
+        sp.strokeCap = Paint.Cap.ROUND
+        c.drawPath(path, sp)
+    }
+
     private fun drawBubble(c: Canvas, b: Int, w: Int, h: Int) {
         var bg = Color.WHITE
-        var fg = 0xFF2A2230.toInt()
         when (b) {
-            Bub.JHOL -> { bg = 0xFFE53935.toInt(); fg = Color.WHITE }
-            Bub.ANGRY -> { bg = 0xFFB71C1C.toInt(); fg = Color.WHITE }
-            Bub.EXCL -> { bg = 0xFFE53935.toInt(); fg = Color.WHITE }
-            Bub.HAPPY -> { bg = 0xFFFFF3C4.toInt() }
-            Bub.VLOG, Bub.BIKE, Bub.TOUR -> { bg = 0xFFFFE08A.toInt() }
-            Bub.SURYA -> { bg = 0xFFFFD6A5.toInt() }
+            Bub.JHOL, Bub.EXCL -> bg = 0xFFE53935.toInt()
+            Bub.ANGRY -> bg = 0xFF7F1010.toInt()
+            Bub.HAPPY -> bg = 0xFFFFF3C4.toInt()
+            Bub.VLOG -> bg = 0xFFFF8FC8.toInt()
+            Bub.BIKE -> bg = 0xFFFFD66B.toInt()
+            Bub.TOUR -> bg = 0xFF8FE3D8.toInt()
+            Bub.SURYA -> bg = 0xFFFFD6A5.toInt()
+            Bub.NAMASTE -> bg = 0xFFFFE9B0.toInt()
+            Bub.THANKS -> bg = 0xFFD8F5D0.toInt()
         }
-        val body = RectF(6f, 6f, w - 6f, 92f)
+        val ink = 0xFF2A2230.toInt()
+        val cx = w / 2f
+        val cy = 50f
         val tail = Path()
-        tail.moveTo(w / 2f - 16f, 88f)
-        tail.lineTo(w / 2f, 124f)
-        tail.lineTo(w / 2f + 16f, 88f)
+        tail.moveTo(cx - 15f, 86f)
+        tail.lineTo(cx, 122f)
+        tail.lineTo(cx + 15f, 86f)
         tail.close()
-        val stroke = paint(0xFF2A2230.toInt(), Paint.Style.STROKE, 6f)
+        val stroke = paint(ink, Paint.Style.STROKE, 6f)
         stroke.strokeJoin = Paint.Join.ROUND
         c.drawPath(tail, paint(bg))
-        c.drawRoundRect(body, 30f, 30f, paint(bg))
-        c.drawRoundRect(body, 30f, 30f, stroke)
-        c.drawLine(w / 2f - 12f, 90f, w / 2f + 12f, 90f, paint(bg, Paint.Style.STROKE, 8f))
-        val tp = Paint(Paint.ANTI_ALIAS_FLAG)
-        tp.typeface = Typeface.create("sans-serif-black", Typeface.NORMAL)
-        tp.textAlign = Paint.Align.CENTER
-        tp.color = fg
-        val text = BUB_TEXT[b]
-        var size = if (b == Bub.EXCL) 78f else 44f
-        tp.textSize = size
-        val maxW = w - 56f
-        while (tp.measureText(text) > maxW && size > 16f) {
-            size -= 2f
-            tp.textSize = size
+        c.drawPath(tail, stroke)
+        c.drawCircle(cx, cy, 46f, paint(bg))
+        c.drawCircle(cx, cy, 46f, stroke)
+        c.drawRect(cx - 13f, 80f, cx + 13f, 92f, paint(bg))
+        c.drawCircle(cx, cy, 40f, paint(0x22FFFFFF))
+        c.save()
+        c.translate(cx, cy)
+        when (b) {
+            Bub.JHOL -> {
+                val p = Path()
+                p.moveTo(-26f, 24f)
+                p.cubicTo(-34f, 6f, -18f, -22f, 6f, -24f)
+                p.cubicTo(22f, -25f, 28f, -12f, 20f, -8f)
+                p.cubicTo(8f, -8f, 4f, 8f, -8f, 22f)
+                p.cubicTo(-14f, 28f, -24f, 28f, -26f, 24f)
+                p.close()
+                fillStroke(c, p, 0xFFFFFFFF.toInt(), 0xFF7F1010.toInt(), 4f)
+                c.drawRoundRect(RectF(2f, -34f, 20f, -20f), 5f, 5f, paint(0xFF2E7D32.toInt()))
+                c.drawCircle(-6f, 4f, 5f, paint(0xFFE53935.toInt()))
+            }
+            Bub.MOMO -> {
+                c.drawOval(RectF(-34f, 6f, 34f, 34f), paint(0xFFE9EEF2.toInt()))
+                c.drawOval(RectF(-34f, 6f, 34f, 34f), paint(0xFF8996A3.toInt(), Paint.Style.STROKE, 3f))
+                val p = Path()
+                p.moveTo(-24f, 14f)
+                p.quadTo(-24f, -26f, 0f, -26f)
+                p.quadTo(24f, -26f, 24f, 14f)
+                p.close()
+                fillStroke(c, p, 0xFFFFEFC9.toInt(), 0xFFBE8E4A.toInt(), 4f)
+                for (k in -2..2) c.drawLine(k * 5f, -22f, k * 3f, -6f, paint(0xFFBE8E4A.toInt(), Paint.Style.STROKE, 3f))
+            }
+            Bub.CHIYA -> {
+                val p = Path()
+                p.moveTo(-22f, -10f); p.lineTo(18f, -10f); p.lineTo(12f, 28f); p.lineTo(-16f, 28f); p.close()
+                fillStroke(c, p, 0xFFC27A3E.toInt(), 0xFF6D3E19.toInt(), 4f)
+                c.drawRect(-20f, -10f, 16f, 0f, paint(0xFFE9C79B.toInt()))
+                c.drawArc(RectF(10f, -2f, 32f, 20f), -90f, 180f, false, paint(0xFF6D3E19.toInt(), Paint.Style.STROKE, 5f))
+                val sp = paint(0xFFB0B8C0.toInt(), Paint.Style.STROKE, 4f)
+                c.drawArc(RectF(-14f, -34f, -2f, -14f), 90f, 200f, false, sp)
+                c.drawArc(RectF(2f, -38f, 14f, -16f), 270f, 200f, false, sp)
+            }
+            Bub.HAPPY -> {
+                val hp = Path()
+                hp.moveTo(0f, 26f)
+                hp.cubicTo(-40f, -2f, -20f, -34f, 0f, -12f)
+                hp.cubicTo(20f, -34f, 40f, -2f, 0f, 26f)
+                fillStroke(c, hp, 0xFFE91E63.toInt(), 0xFF8E0F3A.toInt(), 3f)
+                c.drawCircle(-9f, -9f, 4f, paint(0x88FFFFFF.toInt()))
+            }
+            Bub.ANGRY -> {
+                c.drawCircle(0f, 2f, 28f, paint(0xFFFFB74D.toInt()))
+                c.drawCircle(0f, 2f, 28f, paint(0xFF4E1010.toInt(), Paint.Style.STROKE, 4f))
+                val br = paint(0xFF4E1010.toInt(), Paint.Style.STROKE, 6f)
+                br.strokeCap = Paint.Cap.ROUND
+                c.drawLine(-18f, -12f, -5f, -3f, br)
+                c.drawLine(18f, -12f, 5f, -3f, br)
+                c.drawCircle(-10f, 4f, 4f, paint(0xFF4E1010.toInt()))
+                c.drawCircle(10f, 4f, 4f, paint(0xFF4E1010.toInt()))
+                c.drawArc(RectF(-12f, 12f, 12f, 30f), 200f, 140f, false, br)
+                val st = paint(0xFFFF5252.toInt(), Paint.Style.STROKE, 4f)
+                c.drawLine(-22f, -30f, -14f, -22f, st)
+                c.drawLine(22f, -30f, 14f, -22f, st)
+            }
+            Bub.CHAT0 -> {
+                c.drawCircle(0f, -6f, 22f, paint(0xFFFFD84A.toInt()))
+                c.drawCircle(0f, -6f, 22f, paint(0xFFB78A00.toInt(), Paint.Style.STROKE, 4f))
+                c.drawRoundRect(RectF(-11f, 14f, 11f, 30f), 4f, 4f, paint(0xFF8E98A3.toInt()))
+                c.drawLine(-12f, 20f, 12f, 20f, paint(0xFF5E6A76.toInt(), Paint.Style.STROKE, 3f))
+                c.drawArc(RectF(-12f, -18f, 12f, 6f), 200f, 100f, false, paint(0xAAFFFFFF.toInt(), Paint.Style.STROKE, 4f))
+            }
+            Bub.CHAT1 -> {
+                val p = Path()
+                p.moveTo(-18f, -32f); p.lineTo(22f, 2f); p.lineTo(2f, 2f); p.lineTo(22f, 32f); p.lineTo(-18f, 32f); p.close()
+                fillStroke(c, p, 0xFFDC143C.toInt(), 0xFF003893.toInt(), 5f)
+                c.drawCircle(-8f, -6f, 5f, paint(Color.WHITE))
+                c.drawCircle(-6f, 18f, 5f, paint(Color.WHITE))
+            }
+            Bub.CHAT2 -> {
+                val wp = paint(0xFF1E88E5.toInt(), Paint.Style.STROKE, 7f)
+                wp.strokeCap = Paint.Cap.ROUND
+                c.drawArc(RectF(-32f, -26f, 32f, 38f), 225f, 90f, false, wp)
+                c.drawArc(RectF(-22f, -14f, 22f, 30f), 225f, 90f, false, wp)
+                c.drawArc(RectF(-12f, -2f, 12f, 22f), 225f, 90f, false, wp)
+                c.drawCircle(0f, 26f, 5f, paint(0xFF1E88E5.toInt()))
+            }
+            Bub.CHAT3 -> {
+                val p = Path()
+                for (k in 0 until 6) {
+                    val a = Math.toRadians(30.0 + 60.0 * k)
+                    val px = (Math.cos(a) * 30.0).toFloat()
+                    val py = (Math.sin(a) * 30.0).toFloat()
+                    if (k == 0) p.moveTo(px, py) else p.lineTo(px, py)
+                }
+                p.close()
+                fillStroke(c, p, 0xFF8E5CF7.toInt(), 0xFF3B1E8A.toInt(), 4f)
+                val tp = Paint(Paint.ANTI_ALIAS_FLAG)
+                tp.typeface = Typeface.create("sans-serif-black", Typeface.NORMAL)
+                tp.textAlign = Paint.Align.CENTER
+                tp.textSize = 30f
+                tp.color = Color.WHITE
+                c.drawText("W3", 0f, 11f, tp)
+            }
+            Bub.SURYA -> {
+                c.save()
+                c.rotate(-25f)
+                c.drawRoundRect(RectF(-30f, -6f, 22f, 8f), 3f, 3f, paint(0xFFFFFFFF.toInt()))
+                c.drawRect(RectF(6f, -6f, 22f, 8f), paint(0xFFE29A3C.toInt()))
+                c.drawRoundRect(RectF(-34f, -6f, -26f, 8f), 3f, 3f, paint(0xFFE53935.toInt()))
+                c.drawRoundRect(RectF(-30f, -6f, 22f, 8f), 3f, 3f, paint(ink, Paint.Style.STROKE, 3f))
+                c.restore()
+                val sp = paint(0xFF9AA3AB.toInt(), Paint.Style.STROKE, 4f)
+                sp.strokeCap = Paint.Cap.ROUND
+                val sm = Path()
+                sm.moveTo(-26f, -10f)
+                sm.cubicTo(-34f, -22f, -18f, -26f, -26f, -38f)
+                c.drawPath(sm, sp)
+            }
+            Bub.THANKS -> {
+                c.drawCircle(0f, 0f, 28f, paint(0xFFFFD84A.toInt()))
+                c.drawCircle(0f, 0f, 28f, paint(0xFF8A6A00.toInt(), Paint.Style.STROKE, 4f))
+                c.drawCircle(-10f, -6f, 4f, paint(ink))
+                c.drawCircle(10f, -6f, 4f, paint(ink))
+                val sm = paint(ink, Paint.Style.STROKE, 5f)
+                sm.strokeCap = Paint.Cap.ROUND
+                c.drawArc(RectF(-14f, -2f, 14f, 18f), 20f, 140f, false, sm)
+                c.drawCircle(-18f, 8f, 5f, paint(0x66FF5A5A.toInt()))
+                c.drawCircle(18f, 8f, 5f, paint(0x66FF5A5A.toInt()))
+            }
+            Bub.VLOG -> {
+                c.drawRoundRect(RectF(-30f, -16f, 20f, 22f), 8f, 8f, paint(0xFF2A2230.toInt()))
+                val tri = Path()
+                tri.moveTo(20f, -4f); tri.lineTo(34f, -14f); tri.lineTo(34f, 20f); tri.lineTo(20f, 10f); tri.close()
+                c.drawPath(tri, paint(0xFF2A2230.toInt()))
+                c.drawCircle(-6f, 3f, 11f, paint(0xFF8BE6FF.toInt()))
+                c.drawCircle(-6f, 3f, 5f, paint(0xFF136C8E.toInt()))
+                c.drawCircle(-22f, -8f, 4f, paint(0xFFFF3B3B.toInt()))
+            }
+            Bub.BIKE -> {
+                val p = Path()
+                p.moveTo(-30f, 14f)
+                p.cubicTo(-34f, -28f, 30f, -28f, 30f, 6f)
+                p.lineTo(30f, 14f)
+                p.close()
+                fillStroke(c, p, 0xFF2A2A30.toInt(), ink, 3f)
+                c.drawRoundRect(RectF(-4f, -4f, 34f, 12f), 6f, 6f, paint(0xFFFFC93C.toInt()))
+                c.drawRect(-30f, 14f, 30f, 22f, paint(0xFF55555F.toInt()))
+            }
+            Bub.TOUR -> {
+                c.drawRoundRect(RectF(-32f, -14f, 32f, 28f), 8f, 8f, paint(0xFF2A2230.toInt()))
+                c.drawRoundRect(RectF(-14f, -24f, 8f, -12f), 4f, 4f, paint(0xFF2A2230.toInt()))
+                c.drawCircle(0f, 7f, 15f, paint(0xFFDDE6EA.toInt()))
+                c.drawCircle(0f, 7f, 9f, paint(0xFF2FB5A8.toInt()))
+                c.drawCircle(-4f, 3f, 3f, paint(0x99FFFFFF.toInt()))
+                c.drawCircle(22f, -6f, 3f, paint(0xFFFFC93C.toInt()))
+            }
+            Bub.NAMASTE -> {
+                for (k in 0 until 8) {
+                    val a = Math.toRadians(45.0 * k)
+                    c.drawCircle((Math.cos(a) * 17.0).toFloat(), (Math.sin(a) * 17.0).toFloat(), 11f, paint(0xFFFF8F1F.toInt()))
+                }
+                c.drawCircle(0f, 0f, 12f, paint(0xFFFFC93C.toInt()))
+            }
+            Bub.EXCL -> {
+                c.drawRoundRect(RectF(-7f, -30f, 7f, 8f), 6f, 6f, paint(Color.WHITE))
+                c.drawCircle(0f, 22f, 8f, paint(Color.WHITE))
+            }
         }
-        var tx = w / 2f
-        if (b == Bub.HAPPY) tx -= 14f
-        c.drawText(text, tx, 49f + size * 0.35f, tp)
-        if (b == Bub.HAPPY) {
-            val hp = Path()
-            val hx = w - 44f
-            val hy = 42f
-            hp.moveTo(hx, hy + 22f)
-            hp.cubicTo(hx - 34f, hy - 4f, hx - 14f, hy - 28f, hx, hy - 8f)
-            hp.cubicTo(hx + 14f, hy - 28f, hx + 34f, hy - 4f, hx, hy + 22f)
-            c.drawPath(hp, paint(0xFFE91E63.toInt()))
-        }
+        c.restore()
     }
 }

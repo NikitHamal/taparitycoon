@@ -23,6 +23,7 @@ object SK {
     const val TABLE = 6
     const val KETTLE = 7
     const val BENCH = 8
+    const val BUILDING = 9
 }
 
 /** Customer types. */
@@ -130,9 +131,9 @@ object Col {
     }
 }
 
-/** Fixed shop layout shared by all franchise locations. */
+/** Fixed shop layout shared by all franchise locations (big, roomy plot). */
 object Layout {
-    const val N = 17
+    const val N = 18
     const val ID_MAIDA = 0
     const val ID_MEAT = 1
     const val ID_JHOL = 2
@@ -142,32 +143,50 @@ object Layout {
     const val ID_TABLE0 = 6
     const val ID_KETTLE = 12
     const val ID_BENCH0 = 13
+    const val ID_BUILDING = 17
     const val INITIAL_MASK = 0x7F
+
+    // plot geometry shared by game + renderer
+    const val QZ = 12.4f          // queue line
+    const val WALK_Z = 15.4f      // customers walk along this sidewalk line
+    const val LANE_Z = -5.2f      // staff lane between kitchen row and floor
+    const val DIV_Z = -4.7f
+    const val MIN_X = -11.6f
+    const val MAX_X = 14.8f
+    const val MIN_Z = -9.6f
+    const val MAX_Z = 12.8f
+    const val MAX_Z_THELA = 10.6f
 
     val KIND = intArrayOf(
         SK.MAIDA, SK.MEAT, SK.JHOL, SK.PREP, SK.MOKTU, SK.CAULDRON,
         SK.TABLE, SK.TABLE, SK.TABLE, SK.TABLE, SK.TABLE, SK.TABLE,
-        SK.KETTLE, SK.BENCH, SK.BENCH, SK.BENCH, SK.BENCH
+        SK.KETTLE, SK.BENCH, SK.BENCH, SK.BENCH, SK.BENCH, SK.BUILDING
     )
     val X = floatArrayOf(
-        -6.5f, -3.5f, 7.5f, -0.5f, 3.5f, 7.5f,
-        -5f, -1.5f, 2f, -5f, -1.5f, 2f,
-        9.5f, 6.4f, 9.4f, 6.4f, 9.4f
+        -10f, -6.5f, 9.5f, -2f, 3.5f, 9.5f,
+        -7f, -2.5f, 2f, -7f, -2.5f, 2f,
+        13f, 8.2f, 12f, 8.2f, 12f, 9.8f
     )
     val Z = floatArrayOf(
-        -5.5f, -5.5f, -5.5f, -5.5f, -5.5f, -1.0f,
-        0.5f, 0.5f, 0.5f, 4.5f, 4.5f, 4.5f,
-        1.2f, 4.2f, 4.2f, 7.6f, 7.6f
+        -8f, -8f, -8f, -8f, -8f, -3.2f,
+        1.5f, 1.5f, 1.5f, 6.5f, 6.5f, 6.5f,
+        1.8f, 5.4f, 5.4f, 9.4f, 9.4f, 6.8f
     )
     val BASE = doubleArrayOf(
         0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         0.0, 150.0, 450.0, 1000.0, 2200.0, 4500.0,
-        800.0, 350.0, 800.0, 1600.0, 3000.0
+        800.0, 350.0, 800.0, 1600.0, 3000.0, 1800.0
     )
     val NAME = arrayOf(
         "Maida", "Meat", "Jhol Jars", "Prep Table", "Moktu", "Jhol Cauldron",
         "Table 1", "Table 2", "Table 3", "Table 4", "Table 5", "Table 6",
-        "Chiya Kettle", "Chiya Bench 1", "Chiya Bench 2", "Chiya Bench 3", "Chiya Bench 4"
+        "Chiya Kettle", "Chiya Bench 1", "Chiya Bench 2", "Chiya Bench 3", "Chiya Bench 4", "The Shop Building"
+    )
+    /** Stations that only exist once the street thela has grown into a real building. */
+    val NEEDB = booleanArrayOf(
+        false, false, false, false, false, false,
+        false, false, false, true, true, true,
+        true, true, true, true, true, false
     )
 
     val ZX = FloatArray(N)
@@ -181,38 +200,41 @@ object Layout {
     val HZ = FloatArray(N)
     val OB = FloatArray(N)   // obstacle radius
 
-    val AISLE = floatArrayOf(-3.25f, 0.25f, 4.6f)
+    val AISLE = floatArrayOf(-4.75f, -0.25f, 5.0f)
 
     init {
         for (i in 0 until N) {
             val x = X[i]
             val z = Z[i]
-            ZX[i] = x; ZZ[i] = z; ZR[i] = 1.7f
+            ZX[i] = x; ZZ[i] = z; ZR[i] = 1.55f
             PX[i] = x; PZ[i] = z
             WX[i] = ZX[i]; WZ[i] = ZZ[i]
             HX[i] = 1.5f; HZ[i] = 1.5f
             OB[i] = 1.2f
             when (KIND[i]) {
-                SK.MAIDA, SK.MEAT -> { ZZ[i] = z + 1.6f; ZR[i] = 1.3f; OB[i] = 1.25f }
-                SK.JHOL -> { ZZ[i] = z + 1.6f; ZR[i] = 1.3f; OB[i] = 1.2f }
-                SK.PREP -> { ZZ[i] = z + 1.6f; ZR[i] = 1.55f; OB[i] = 1.4f }
-                SK.MOKTU -> { ZZ[i] = z + 1.9f; ZR[i] = 1.6f; OB[i] = 1.6f; HX[i] = 1.8f; HZ[i] = 1.8f }
-                SK.CAULDRON -> { ZZ[i] = z; ZR[i] = 1.6f; OB[i] = 0.95f }
+                SK.MAIDA, SK.MEAT -> { ZZ[i] = z + 1.6f; ZR[i] = 1.25f; OB[i] = 1.25f }
+                SK.JHOL -> { ZZ[i] = z + 1.6f; ZR[i] = 1.25f; OB[i] = 1.2f }
+                SK.PREP -> { ZZ[i] = z + 1.6f; ZR[i] = 1.45f; OB[i] = 1.4f }
+                SK.MOKTU -> { ZZ[i] = z + 1.9f; ZR[i] = 1.5f; OB[i] = 1.6f; HX[i] = 1.8f; HZ[i] = 1.8f }
+                SK.CAULDRON -> { ZZ[i] = z; ZR[i] = 1.55f; OB[i] = 0.95f }
                 SK.TABLE -> {
-                    ZX[i] = x + 0.5f; ZZ[i] = z + 0.8f; ZR[i] = 2.4f
+                    ZX[i] = x + 0.5f; ZZ[i] = z + 0.8f; ZR[i] = 2.2f
                     PX[i] = x + 1.5f; PZ[i] = z - 0.55f
                     WX[i] = x + 1.75f; WZ[i] = z + 0.2f
                     HX[i] = 1.7f; HZ[i] = 1.4f; OB[i] = 1.05f
                 }
                 SK.KETTLE -> {
-                    ZX[i] = x - 0.3f; ZZ[i] = z + 0.5f; ZR[i] = 1.6f; OB[i] = 1.0f
+                    ZX[i] = x - 0.3f; ZZ[i] = z + 0.5f; ZR[i] = 1.5f; OB[i] = 1.0f
                     PX[i] = x - 1.4f; PZ[i] = z
                 }
                 SK.BENCH -> {
-                    ZX[i] = x; ZZ[i] = z - 0.3f; ZR[i] = 2.2f
+                    ZX[i] = x; ZZ[i] = z - 0.3f; ZR[i] = 2.0f
                     PX[i] = x + 1.4f; PZ[i] = z - 0.3f
                     WX[i] = x; WZ[i] = z - 1.35f
                     HX[i] = 1.6f; HZ[i] = 1.3f; OB[i] = 1.1f
+                }
+                SK.BUILDING -> {
+                    HX[i] = 3.2f; HZ[i] = 2.6f; OB[i] = 0f; ZR[i] = 0f
                 }
             }
         }
@@ -306,7 +328,12 @@ data class Hud(
     val tick: Int = 0,
     val toast: String = "",
     val toastSeq: Int = 0,
-    val vip: Int = 0
+    val vip: Int = 0,
+    val bldg: Boolean = false,
+    val goal: String = "",
+    val goalFrac: Float = 0f,
+    val rush: Int = 0,
+    val jholPct: Int = 100
 )
 
 object Glyph {

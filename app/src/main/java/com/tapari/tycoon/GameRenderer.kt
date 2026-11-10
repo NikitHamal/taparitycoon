@@ -11,7 +11,7 @@ import kotlin.math.sqrt
 
 /** OpenGL ES 3.0 renderer. Everything is pre-allocated: the render loop makes no garbage. */
 class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
-    private val lit = LitBatch(120000, 260000)
+    private val lit = LitBatch(220000, 460000)
     private val sg = SpriteBatch(1400)
     private val sb = SpriteBatch(1600)
     private val so = SpriteBatch(500)
@@ -35,6 +35,13 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
     private var camX = 0f
     private var camZ = 0f
     private var camInit = false
+    private var menuBlend = 1f
+    private var menuTarget = 1f
+    @Volatile var framesDrawn = 0
+
+    fun setMenu(on: Boolean) {
+        menuTarget = if (on) 1f else 0f
+    }
 
     private val sunX: Float
     private val sunY: Float
@@ -90,14 +97,18 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
 
         // ---- camera ----
-        val yaw = game.camYaw
-        val pitch = 0.98f
-        val tx = (game.px * 0.8f).coerceIn(-3.2f, 6.2f)
-        val tz = (game.pz - 0.5f).coerceIn(-2.0f, 7.0f)
+        menuBlend += (menuTarget - menuBlend) * min(1f, dt * 2.0f)
+        val mb = menuBlend
+        val yawPlay = 0.38f
+        val yaw = yawPlay + (0.38f + 0.5f * sin(game.time * 0.12f) - yawPlay) * mb
+        game.camYaw = yaw
+        val pitch = 0.98f + (0.78f - 0.98f) * mb
+        val tx = (game.px + game.pvx * 0.2f).coerceIn(-7.5f, 11.5f)
+        val tz = (game.pz - 1.0f + game.pvz * 0.2f).coerceIn(-6.0f, 9.5f)
         if (!camInit) {
             camX = tx; camZ = tz; camInit = true
         }
-        val k = min(1f, dt * 5f)
+        val k = min(1f, dt * 4.5f)
         camX += (tx - camX) * k
         camZ += (tz - camZ) * k
         var shx = 0f
@@ -108,13 +119,15 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         }
         val ar = if (aspect < 0.3f) 0.3f else aspect
         val distScale = (0.5f / ar).coerceIn(0.8f, 1.3f)
-        val dist = 25.5f * distScale
+        val dist = 21.5f * distScale * (1f - mb) + 38f * mb
+        val fx = camX * (1f - mb) + 1.5f * mb
+        val fz = camZ * (1f - mb) + 1.0f * mb
         val cp = cos(pitch)
-        val ex = camX + sin(yaw) * cp * dist
+        val ex = fx + sin(yaw) * cp * dist
         val ey = sin(pitch) * dist
-        val ez = camZ + cos(yaw) * cp * dist
-        Mat.perspective(proj, 36f, ar, 4f, 100f)
-        Mat.lookAt(view, ex, ey, ez, camX + shx, 0f, camZ + shz)
+        val ez = fz + cos(yaw) * cp * dist
+        Mat.perspective(proj, 36f, ar, 4f, 190f)
+        Mat.lookAt(view, ex, ey, ez, fx + shx, 0f, fz + shz)
         Mat.mul(vp, proj, view)
 
         synchronized(game.lock) {
@@ -149,5 +162,6 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         GLES30.glDepthMask(true)
         GLES30.glDisable(GLES30.GL_BLEND)
+        framesDrawn++
     }
 }

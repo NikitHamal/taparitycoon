@@ -25,6 +25,8 @@ class AudioFx(private val ctx: Context, private val game: Game) : Fx {
     private var pool: SoundPool? = null
     private val ids = IntArray(Sfx.COUNT)
     @Volatile private var ready = false
+    @Volatile private var done = false
+    fun isReady(): Boolean = done
     private var amb: AudioTrack? = null
     private var vib: Vibrator? = null
     private var lastHap = 0L
@@ -54,6 +56,8 @@ class AudioFx(private val ctx: Context, private val game: Game) : Fx {
                 buildAmbience()
             } catch (e: Throwable) {
                 // audio is optional; never crash the game
+            } finally {
+                done = true
             }
         }
         t.priority = Thread.MIN_PRIORITY

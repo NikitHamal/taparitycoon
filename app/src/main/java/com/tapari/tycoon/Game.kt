@@ -32,6 +32,7 @@ class Station(val id: Int) {
     var occ1 = -1
     var flash = 0f
     var pop = 0f
+    var avail = true
 }
 
 class Cust {
@@ -74,6 +75,9 @@ class Cust {
     var flip = 0f
     var seated = false
     var fxT = 0f
+    var look = 0
+    var cheer = 0f
+    var mood = 0f
 }
 
 class Staff {
@@ -137,7 +141,7 @@ class Game {
         const val CH_JARS = 3
         const val CH_EARN = 4
 
-        val QX = floatArrayOf(-5f, -3.5f, -2f, -0.5f, 1f, 2.5f)
+        val QX = floatArrayOf(-6f, -4.2f, -2.4f, -0.6f, 1.2f, 3.0f)
 
         val SHIRTS = intArrayOf(
             Col.rgb(0xE5533D), Col.rgb(0x3D8BE5), Col.rgb(0x58B368), Col.rgb(0xF2B134),
@@ -253,6 +257,12 @@ class Game {
     var toastSeq = 0
     var vipHere = 0
     var shake = 0f
+    @Volatile var paused = false
+    var buildT = 1f
+    var rushT = 0f
+    var rushCd = 70f
+    var pickPulse = 0f
+    var padDwellT = 0f
 
     // particles (struct of arrays, zero allocation)
     var pN = 0
@@ -307,7 +317,8 @@ class Game {
     // Derived stats
     // =====================================================================
     fun lvl(id: Int): Int = upg[loc][id]
-    fun playerSpeed(): Float = (4.4f + 0.3f * lvl(Up.SPEED)) * (if (boostT > 0f) 1.25f else 1f)
+    fun owns(): Boolean = ((padMask[loc] shr Layout.ID_BUILDING) and 1) == 1
+    fun playerSpeed(): Float = (5.0f + 0.32f * lvl(Up.SPEED)) * (if (boostT > 0f) 1.25f else 1f)
     fun carryCap(): Int = 6 + 2 * lvl(Up.CARRY)
     fun gemMult(): Double = 1.0 + 0.05 * gems
     fun platePrice(): Double = 30.0 * (1.0 + 0.2 * lvl(Up.PRICE)) * Locs.MULT[loc] * gemMult()
@@ -383,6 +394,7 @@ class Game {
             if (st[i].cashAmt > 0.0) earn(st[i].cashAmt)
         }
         loc = l
+        if (l > 0) padMask[l] = padMask[l] or (1 shl Layout.ID_BUILDING)
         for (i in 0 until NST) {
             val s = st[i]
             s.kind = Layout.KIND[i]
@@ -396,6 +408,7 @@ class Game {
             s.cashAmt = 0.0; s.acc = 0.0; s.bills = 0
             s.occ0 = -1; s.occ1 = -1
             s.flash = 0f; s.pop = 0f
+            s.avail = !Layout.NEEDB[i] || owns()
             claimA[i] = 0
             claimB[i] = 0
         }
@@ -410,8 +423,12 @@ class Game {
         }
         pN = 0
         carryN = 0
-        px = 0.25f
-        pz = -1.0f
+        buildT = if (owns()) 1f else 0f
+        rushT = 0f
+        rushCd = 70f + rnd() * 40f
+        padDwellT = 0f
+        px = 1f
+        pz = -3.2f
         pvx = 0f
         pvz = 0f
         spawnT = 2f
@@ -457,6 +474,24 @@ class Game {
             sfx(Sfx.VIP, 1f, 1f)
             hap(Hap.SUCCESS)
             return true
+        }
+    }
+
+    fun newGame() {
+        synchronized(lock) {
+            money = 0.0; gems = 0; lifetime = 0.0; runEarned = 0.0; locMask = 1
+            for (l in 0 until Locs.COUNT) {
+                for (u in 0 until Up.COUNT) upg[l][u] = 0
+                padMask[l] = Layout.INITIAL_MASK
+                for (k in 0 until NST) padPaid[l][k] = 0.0
+            }
+            incomeEma = 0.0
+            platesServed = 0L; chiyaServed = 0L; vipServed = 0L; angryLeft = 0L
+            offlineEarn = 0.0; offlineSecs = 0L
+            dayKey = 0
+            ensureDay()
+            for (i in 0 until NST) st[i].cashAmt = 0.0
+            enterLocation(0)
         }
     }
 
@@ -531,22 +566,22 @@ class Game {
         s.src = -1
         s.dst = -1
         s.x = homeX(s)
-        s.z = -2.4f
+        s.z = Layout.LANE_Z
         s.heading = 0f
         staffN++
     }
 
     private fun homeX(s: Staff): Float = when (s.role) {
-        Role.KANCHA -> 2.2f + s.idx * 0.8f
-        Role.JHOL -> 5.6f + s.idx * 0.5f
-        Role.DIDI -> 8.2f + s.idx * 0.6f
-        else -> -1.2f + s.idx * 0.8f
+        Role.KANCHA -> -3.5f + s.idx * 1.0f
+        Role.JHOL -> 6.8f + s.idx * 0.8f
+        Role.DIDI -> 11.0f + s.idx * 0.8f
+        else -> -8.0f + s.idx * 1.0f
     }
 
     private fun homeZ(s: Staff): Float = when (s.role) {
-        Role.DIDI -> -0.2f
-        Role.DAI -> -2.3f
-        else -> -2.6f
+        Role.DIDI -> -0.6f
+        Role.DAI -> -5.0f
+        else -> Layout.LANE_Z
     }
 
     // =====================================================================
@@ -556,12 +591,24 @@ class Game {
         val dt = if (dt0 > 0.05f) 0.05f else dt0
         synchronized(lock) {
             time += dt
+            if (paused) {
+                alertPulse += dt * 7f
+                return
+            }
+            if (buildT < 1f && owns()) buildT = min(1f, buildT + dt * 0.45f)
             if (boostT > 0f) boostT -= dt
             if (vlogT > 0f) vlogT -= dt
             alertPulse += dt * 7f
             if (yellCd > 0f) yellCd -= dt
             if (hapT > 0f) hapT -= dt
             if (shake > 0f) shake -= dt
+            if (pickPulse > 0f) pickPulse -= dt * 4f
+            if (rushT > 0f) rushT -= dt
+            rushCd -= dt
+            if (rushCd <= 0f) {
+                rushCd = 80f + rnd() * 50f
+                if (seatsOpen() >= 4) startRush()
+            }
             updatePlayer(dt)
             updatePads(dt)
             interact(dt)
@@ -617,7 +664,7 @@ class Game {
         // collisions
         for (i in 0 until NST) {
             val s = st[i]
-            if (!s.unlocked) continue
+            if (!s.unlocked || s.kind == SK.BUILDING) continue
             val r = Layout.OB[i] + 0.35f
             val ox = px - s.x
             val oz = pz - s.z
@@ -632,8 +679,8 @@ class Game {
                 }
             }
         }
-        px = px.coerceIn(-8.8f, 10.9f)
-        pz = pz.coerceIn(-6.8f, 11.6f)
+        px = px.coerceIn(Layout.MIN_X, Layout.MAX_X)
+        pz = pz.coerceIn(Layout.MIN_Z, if (owns()) Layout.MAX_Z else Layout.MAX_Z_THELA)
         val sp = sqrt(pvx * pvx + pvz * pvz)
         moveAmt = min(1f, sp / 4f)
         if (sp > 0.4f) {
@@ -709,6 +756,7 @@ class Game {
     }
 
     private fun addCarry(item: Int) {
+        pickPulse = 1f
         if (carryN < MAXCARRY) carry[carryN++] = item
     }
 
@@ -825,10 +873,17 @@ class Game {
     // ---- Pads -------------------------------------------------------------------
     private fun updatePads(dt: Float) {
         padFx -= dt
+        var onAny = false
         for (k in 0 until NST) {
             val s = st[k]
-            if (s.unlocked) continue
-            if (abs(px - s.x) < Layout.HX[k] && abs(pz - s.z) < Layout.HZ[k]) {
+            if (!s.unlocked && s.avail && abs(px - s.x) < Layout.HX[k] && abs(pz - s.z) < Layout.HZ[k]) { onAny = true; break }
+        }
+        if (onAny) padDwellT += dt else padDwellT = 0f
+        val payOk = padDwellT >= 0.4f && (pvx * pvx + pvz * pvz) < 3.6f * 3.6f
+        for (k in 0 until NST) {
+            val s = st[k]
+            if (s.unlocked || !s.avail) continue
+            if (payOk && abs(px - s.x) < Layout.HX[k] && abs(pz - s.z) < Layout.HZ[k]) {
                 val remain = s.cost - s.paid
                 val rate = max(s.cost / 2.0, 1.0)
                 var amt = min(remain, rate * dt)
@@ -858,7 +913,16 @@ class Game {
         sparkBurst(s.x, 0.5f, s.z, 18, Col.rgb(0xFFD54A))
         sfx(Sfx.UNLOCK, 1f, 1f)
         hap(Hap.SUCCESS)
-        say(if (s.kind == SK.KETTLE) "Chiya & Churot corner is open!" else "Unlocked: " + Layout.NAME[s.id])
+        if (s.kind == SK.BUILDING) {
+            buildT = 0f
+            shake = 0.5f
+            for (k in 0 until NST) st[k].avail = !Layout.NEEDB[k] || owns()
+            for (n in 0 until 6) sparkBurst(s.x + (rnd() - 0.5f) * 5f, 0.6f, s.z + (rnd() - 0.5f) * 4f, 10, Col.rgb(0xFFD54A))
+            say("You bought the shop! Tables 4-6 and the Chiya corner are open")
+            sfx(Sfx.BELL, 0.9f, 1f)
+        } else {
+            say(if (s.kind == SK.KETTLE) "Chiya & Churot corner is open!" else "Unlocked: " + Layout.NAME[s.id])
+        }
     }
 
     // ---- Production ---------------------------------------------------------------
@@ -1007,6 +1071,9 @@ class Game {
         c.pants = PANTS[(rnd() * PANTS.size).toInt().coerceIn(0, PANTS.size - 1)]
         c.skin = SKINS[(rnd() * SKINS.size).toInt().coerceIn(0, SKINS.size - 1)]
         c.hair = HAIRS[(rnd() * HAIRS.size).toInt().coerceIn(0, HAIRS.size - 1)]
+        c.look = (rnd() * 8f).toInt().coerceIn(0, 7)
+        c.cheer = 0f
+        c.mood = 0f
         c.patMax = 28f + rnd() * 8f
         c.eatDur = 4.5f + rnd() * 1.5f
         c.jholReq = if (type == CT.STUDENT) 0 else 1
@@ -1027,25 +1094,27 @@ class Game {
         } else {
             setBubble(c, Bub.NAMASTE, 1.6f)
         }
-        c.z = 13.3f
+        val fromLeft = rnd() < 0.5f
+        c.x = if (fromLeft) -16f else 19f
+        c.z = Layout.WALK_Z
         if (seatCode >= 0) {
             val si = seatCode shr 1
             val seat = seatCode and 1
             reserve(c, idx, si, seat)
-            c.x = Layout.aisleFor(si, Layout.seatX(si, seat))
             planToSeat(c)
             c.state = CS_TO_SEAT
         } else {
             queueOcc[slot] = idx
             c.queueSlot = slot
-            c.x = QX[slot]
             c.wx[0] = QX[slot]
-            c.wz[0] = 11.2f
-            c.wn = 1
+            c.wz[0] = Layout.WALK_Z
+            c.wx[1] = QX[slot]
+            c.wz[1] = Layout.QZ
+            c.wn = 2
             c.wi = 0
             c.state = CS_TO_QUEUE
         }
-        c.heading = Math.PI.toFloat()
+        c.heading = if (fromLeft) 1.5708f else -1.5708f
     }
 
     private fun reserve(c: Cust, idx: Int, si: Int, seat: Int) {
@@ -1061,7 +1130,7 @@ class Game {
         val si = c.seatSt
         val ax = Layout.aisleFor(si, c.sx)
         val cz = Layout.corZ(si)
-        c.wx[0] = ax; c.wz[0] = min(c.z, 11.2f)
+        c.wx[0] = ax; c.wz[0] = min(c.z, Layout.WALK_Z)
         c.wx[1] = ax; c.wz[1] = cz
         c.wx[2] = c.sx; c.wz[2] = cz
         c.wx[3] = c.sx; c.wz[3] = c.sz
@@ -1070,17 +1139,20 @@ class Game {
     }
 
     private fun planLeave(c: Cust) {
+        val exitX = if (c.x < 2.5f) -17f else 20f
         if (c.seatSt >= 0) {
             val si = c.seatSt
             val ax = Layout.aisleFor(si, c.sx)
             val cz = Layout.corZ(si)
             c.wx[0] = c.sx; c.wz[0] = cz
             c.wx[1] = ax; c.wz[1] = cz
-            c.wx[2] = ax; c.wz[2] = 14.5f
-            c.wn = 3
+            c.wx[2] = ax; c.wz[2] = Layout.WALK_Z
+            c.wx[3] = exitX; c.wz[3] = Layout.WALK_Z
+            c.wn = 4
         } else {
-            c.wx[0] = c.x; c.wz[0] = 14.5f
-            c.wn = 1
+            c.wx[0] = c.x; c.wz[0] = Layout.WALK_Z
+            c.wx[1] = exitX; c.wz[1] = Layout.WALK_Z
+            c.wn = 2
         }
         c.wi = 0
     }
@@ -1161,6 +1233,7 @@ class Game {
         s.cashAmt += amt
         s.bills = min(90, s.bills + (if (c.type >= CT.VLOGGER) 4 else 2))
         setBubble(c, Bub.HAPPY, 1.6f)
+        c.cheer = 1.5f
         sparkBurst(c.x, 1.8f, c.z, 5, Col.rgb(0xFFE066))
         sfx(Sfx.CASH, 1.5f, 0.3f)
         if (student) { chiyaServed++; chAdd(CH_CHIYA, 1.0) } else { platesServed++; chAdd(CH_PLATES, 1.0) }
@@ -1183,6 +1256,7 @@ class Game {
         var speedMul = 1f
         if (boostT > 0f) speedMul += 1f
         if (vlogT > 0f) speedMul += 0.5f
+        if (rushT > 0f) speedMul += 1.4f
         spawnT -= dt * speedMul
         if (spawnT <= 0f) {
             val seats = seatsOpen()
@@ -1218,6 +1292,7 @@ class Game {
                 c.bubbleT -= dt
                 if (c.bubbleT <= 0f) c.bubble = Bub.NONE
             }
+            if (c.cheer > 0f) c.cheer -= dt
             when (c.state) {
                 CS_TO_QUEUE -> if (moveAlong(c, dt, c.speed)) {
                     c.state = CS_QUEUE
@@ -1454,10 +1529,10 @@ class Game {
     private fun staffGo(s: Staff, tx: Float, tz: Float, dt: Float, spd: Float): Boolean {
         var wx = tx
         var wz = tz
-        if (tz > -2.0f && s.z < -2.0f) {
-            if (abs(s.x - tx) > 0.3f) { wx = tx; wz = -2.6f }
-        } else if (tz < -2.0f && s.z > -2.0f) {
-            if (s.z > -2.6f) { wx = s.x; wz = -2.7f }
+        if (tz > Layout.DIV_Z && s.z < Layout.DIV_Z) {
+            if (abs(s.x - tx) > 0.3f) { wx = tx; wz = Layout.LANE_Z }
+        } else if (tz < Layout.DIV_Z && s.z > Layout.DIV_Z) {
+            if (s.z > Layout.LANE_Z) { wx = s.x; wz = Layout.LANE_Z - 0.1f }
         }
         val dx = wx - s.x
         val dz = wz - s.z
@@ -1640,6 +1715,14 @@ class Game {
     }
 
     // ---- HUD -------------------------------------------------------------------------------
+    fun startRush() {
+        rushT = 25f
+        spawnT = 0.3f
+        say("Tourist bus arrived! Rush hour for 25s")
+        sfx(Sfx.HORN, 0.8f, 0.9f)
+        hap(Hap.BUZZ)
+    }
+
     fun hint(): String {
         val cd = st[Layout.ID_CAULDRON]
         val prep = st[Layout.ID_PREP]
@@ -1647,29 +1730,75 @@ class Game {
         if (jholAlert) return "Grab red jars from the Jhol crate and refill the cauldron!"
         var bills = 0
         for (i in 0 until NST) bills += st[i].bills
-        if (bills >= 3) return "Walk over the cash piles to collect your rupees!"
-        if (mok.stockA > 0 && carryN == 0) return "Pick up steaming momo plates from the Moktu."
-        if (carryN > 0 && carry[carryN - 1] == Item.PLATE) return "Deliver the plates to tables with hungry customers!"
-        if (prep.stockA < 2 || prep.stockB < 2) return "Carry Maida and Meat to the Prep table."
-        if (cd.level < cauldronCap() * 0.3f) return "Jhol is running low - refill the cauldron soon."
+        if (bills >= 3) return "Walk over the cash piles to collect your rupees"
+        if (mok.stockA > 0 && carryN == 0) return "Pick up steaming momo plates from the Moktu"
+        if (carryN > 0 && carry[carryN - 1] == Item.PLATE) return "Deliver the plates to tables with hungry customers"
+        if (prep.stockA < 2 || prep.stockB < 2) return "Carry Maida and Meat to the Prep table"
+        if (cd.level < cauldronCap() * 0.3f) return "Jhol is running low - refill the cauldron soon"
         for (i in 0 until NST) {
-            if (!st[i].unlocked) return "Stand on a glowing pad to unlock: " + Layout.NAME[i]
+            if (st[i].avail && !st[i].unlocked) {
+                return if (st[i].kind == SK.BUILDING) "Stand still on the big pad to buy the shop building"
+                else "Stand still on a glowing pad to unlock: " + Layout.NAME[i]
+            }
         }
         return "Keep the customers happy!"
+    }
+
+    private var goalTxt = ""
+    private var goalF = 0f
+    private var goalSig = -1L
+
+    private fun computeGoal() {
+        var best = -1
+        var bc = Double.MAX_VALUE
+        for (i in 0 until NST) {
+            val s = st[i]
+            if (s.avail && !s.unlocked) {
+                val rem = s.cost - s.paid
+                if (rem < bc) { bc = rem; best = i }
+            }
+        }
+        if (best >= 0) {
+            val s = st[best]
+            val sig = best * 1000003L + (s.cost - s.paid).toLong() / 5L + (money / 5.0).toLong() * 7L
+            if (sig != goalSig) {
+                goalSig = sig
+                goalTxt = (if (s.kind == SK.BUILDING) "Buy the shop building" else "Unlock " + Layout.NAME[best]) + "  Rs " + fmtMoney(s.cost - s.paid)
+            }
+            goalF = (money / max(1.0, s.cost - s.paid)).toFloat().coerceIn(0f, 1f)
+            return
+        }
+        var nextLoc = -1
+        for (l in 0 until Locs.COUNT) if (((locMask shr l) and 1) == 0) { nextLoc = l; break }
+        if (nextLoc >= 0) {
+            goalTxt = "Expand: " + Locs.NAME[nextLoc] + "  Rs " + fmtMoney(Locs.COST[nextLoc])
+            goalF = (money / Locs.COST[nextLoc]).toFloat().coerceIn(0f, 1f)
+        } else if (canPrestige()) {
+            goalTxt = "Franchise Rebirth is ready!"
+            goalF = 1f
+        } else {
+            goalTxt = "Max out upgrades and rebirth the franchise"
+            goalF = 1f
+        }
     }
 
     fun buildHud(): Hud {
         val cd = st[Layout.ID_CAULDRON]
         var ready = 0
         for (i in 0 until 3) if (!chDone[i] && chProg[i] >= chTarget[i]) ready++
+        computeGoal()
+        val jf = (cd.level / cauldronCap()).coerceIn(0f, 1f)
         return Hud(
             money = money, gems = gems,
-            jhol = (cd.level / cauldronCap()).coerceIn(0f, 1f),
+            jhol = jf,
             jholAlert = jholAlert, jholLow = jholLow,
             carry = carryN, cap = carryCap(), loc = loc, hint = hint(),
             boost = if (boostT > 0f) boostT.toInt() else 0,
             ready = ready, canPrestige = canPrestige(),
-            tick = (time * 8f).toInt(), toast = toast, toastSeq = toastSeq, vip = vipHere
+            tick = (time * 8f).toInt(), toast = toast, toastSeq = toastSeq, vip = vipHere,
+            bldg = owns(), goal = goalTxt, goalFrac = goalF,
+            rush = if (rushT > 0f) rushT.toInt() else 0,
+            jholPct = (jf * 100f).toInt()
         )
     }
 }
