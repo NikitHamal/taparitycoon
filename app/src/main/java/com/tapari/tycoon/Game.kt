@@ -1414,9 +1414,10 @@ class Game {
         var type = CT.NORMAL
         val r = rnd()
         val vipChance = 0.08f + 0.02f * loc
+        val studentChance = if (rainT > 0f) 0.62f else 0.32f
         if (r < vipChance) {
             type = CT.VLOGGER + (rnd() * 3f).toInt().coerceIn(0, 2)
-        } else if (benchesOpen() && rnd() < (if (rainT > 0f) 0.62f else 0.32f)) {
+        } else if (benchesOpen() && rnd() < studentChance) {
             type = CT.STUDENT
         }
         val seatCode = findSeat(type == CT.STUDENT)
