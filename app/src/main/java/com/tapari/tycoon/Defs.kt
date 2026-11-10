@@ -193,11 +193,11 @@ object Layout {
             HX[i] = 1.5f; HZ[i] = 1.5f
             OB[i] = 1.2f
             when (KIND[i]) {
-                SK.MAIDA, SK.MEAT -> { ZZ[i] = z + 1.6f; ZR[i] = 1.7f; OB[i] = 1.25f }
-                SK.JHOL -> { ZZ[i] = z + 1.6f; ZR[i] = 1.7f; OB[i] = 1.2f }
-                SK.PREP -> { ZZ[i] = z + 1.6f; ZR[i] = 1.8f; OB[i] = 1.4f }
-                SK.MOKTU -> { ZZ[i] = z + 1.9f; ZR[i] = 2.0f; OB[i] = 1.6f; HX[i] = 1.8f; HZ[i] = 1.8f }
-                SK.CAULDRON -> { ZZ[i] = z; ZR[i] = 1.9f; OB[i] = 0.95f }
+                SK.MAIDA, SK.MEAT -> { ZZ[i] = z + 1.6f; ZR[i] = 1.3f; OB[i] = 1.25f }
+                SK.JHOL -> { ZZ[i] = z + 1.6f; ZR[i] = 1.3f; OB[i] = 1.2f }
+                SK.PREP -> { ZZ[i] = z + 1.6f; ZR[i] = 1.55f; OB[i] = 1.4f }
+                SK.MOKTU -> { ZZ[i] = z + 1.9f; ZR[i] = 1.6f; OB[i] = 1.6f; HX[i] = 1.8f; HZ[i] = 1.8f }
+                SK.CAULDRON -> { ZZ[i] = z; ZR[i] = 1.6f; OB[i] = 0.95f }
                 SK.TABLE -> {
                     ZX[i] = x + 0.5f; ZZ[i] = z + 0.8f; ZR[i] = 2.4f
                     PX[i] = x + 1.5f; PZ[i] = z - 0.55f
@@ -205,7 +205,7 @@ object Layout {
                     HX[i] = 1.7f; HZ[i] = 1.4f; OB[i] = 1.05f
                 }
                 SK.KETTLE -> {
-                    ZX[i] = x - 0.3f; ZZ[i] = z + 0.5f; ZR[i] = 1.8f; OB[i] = 1.0f
+                    ZX[i] = x - 0.3f; ZZ[i] = z + 0.5f; ZR[i] = 1.6f; OB[i] = 1.0f
                     PX[i] = x - 1.4f; PZ[i] = z
                 }
                 SK.BENCH -> {

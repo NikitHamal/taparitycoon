@@ -11,7 +11,7 @@ import kotlin.math.sqrt
 
 /** OpenGL ES 3.0 renderer. Everything is pre-allocated: the render loop makes no garbage. */
 class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
-    private val lit = LitBatch(90000, 220000)
+    private val lit = LitBatch(120000, 260000)
     private val sg = SpriteBatch(1400)
     private val sb = SpriteBatch(1600)
     private val so = SpriteBatch(500)

@@ -11,6 +11,11 @@ Rule: never run Gradle locally. CI (GitHub Actions) builds debug + signed releas
 - [x] Save/load + offline earnings (`Persist.kt`)
 - [x] Compose HUD (`Hud.kt`, `MainActivity.kt`): floating joystick, cash/gem pills, flashing EXTRA JHOL EMPTY alert, upgrade sheet, franchise map, daily challenges, settings, offline dialog
 
+## Verified (session 1)
+- CI run #1 green: debug + signed release APK published to Release `latest`
+- Headless JVM harness (not committed) ran 20 simulated minutes of Game + Scene with a bot: no exceptions, full economy loop works, peak 73k verts / 85k idx (buffers 120k/260k)
+- Fixed: accidental pickups when running past crates (zones shrunk, 0.3s dwell + slow-speed gate), VIP gem rate 30%
+
 ## Layout / file map
 `Defs.kt` constants + layout + formatting - `Game.kt` simulation - `Scene.kt` all 3D drawing - `Gfx.kt` GL batches - `Atlas.kt` textures - `GameRenderer.kt` camera + passes - `AudioFx.kt` - `Persist.kt` - `Hud.kt` - `MainActivity.kt`
 

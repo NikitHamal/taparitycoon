@@ -300,7 +300,7 @@ class Scene(private val g: Game) {
         val zz = Layout.ZZ[i]
         val r = Layout.ZR[i]
         val a = if (inZone) 0.95f else 0.5f + 0.15f * pulse
-        val sz = r * (if (inZone) 1.75f else 1.6f)
+        val sz = r * (if (inZone) 2.3f else 2.1f)
         SG.quad(zx, 0.045f, zz, gRX, 0f, gRZ, gUX, 0f, gUZ, sz * 0.5f, sz * 0.5f, Atlas.RING, Col.tint(
             ((tint and 255) / 255f), (((tint shr 8) and 255) / 255f), (((tint shr 16) and 255) / 255f), a))
         SG.quad(zx, 0.05f, zz, gRX, 0f, gRZ, gUX, 0f, gUZ, 0.55f, 0.55f, icon, Col.tint(1f, 1f, 1f, 0.85f))

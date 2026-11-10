@@ -299,6 +299,8 @@ class LitBatch(private val maxV: Int, private val maxI: Int) {
     private val idx = IntArray(maxI)
     var vn = 0
     var inn = 0
+    fun rawVerts(): IntArray = vtx
+    fun rawIdx(): IntArray = idx
     private val m = FloatArray(16 * 16)
     private var top = 0
     private val vbuf: IntBuffer = ByteBuffer.allocateDirect(maxV * 7 * 4).order(ByteOrder.nativeOrder()).asIntBuffer()
@@ -475,6 +477,7 @@ class LitBatch(private val maxV: Int, private val maxI: Int) {
 class SpriteBatch(private val maxQ: Int) {
     private val v = IntArray(maxQ * 4 * 6)
     var qn = 0
+    fun rawVerts(): IntArray = v
     private val vbuf: IntBuffer = ByteBuffer.allocateDirect(maxQ * 4 * 6 * 4).order(ByteOrder.nativeOrder()).asIntBuffer()
     private var vao = 0
     private var vbo = 0

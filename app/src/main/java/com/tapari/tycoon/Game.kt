@@ -226,6 +226,9 @@ class Game {
     var chainT = 0f
     var padFx = 0f
     var hapT = 0f
+    var dwellSt = -1
+    var dwellT = 0f
+    var slowOk = true
 
     var spawnT = 3f
     var queueT = 0f
@@ -718,7 +721,23 @@ class Game {
         carryN--
     }
 
+    private fun updateDwell(dt: Float) {
+        var cur = -1
+        for (k in 0 until NST) {
+            val s = st[k]
+            if (s.unlocked && canGive(s) != 0 && inZone(k, px, pz)) { cur = k; break }
+        }
+        if (cur != dwellSt) {
+            dwellSt = cur
+            dwellT = 0f
+        } else if (cur >= 0) {
+            dwellT += dt
+        }
+        slowOk = pvx * pvx + pvz * pvz < 3.2f * 3.2f
+    }
+
     private fun interact(dt: Float) {
+        updateDwell(dt)
         interactT -= dt
         if (interactT > 0f) return
         // 1) drops
@@ -750,23 +769,21 @@ class Game {
             interactT = 0.06f
             return
         }
-        // 3) picks
-        if (carryN < carryCap()) {
-            for (k in 0 until NST) {
-                val s = st[k]
-                if (!s.unlocked || !inZone(k, px, pz)) continue
-                val item = canGive(s)
-                if (item != 0) {
-                    takeFrom(s)
-                    addCarry(item)
-                    flyItem(item, s.x, 1.2f, s.z + 0.4f, px, 1.5f, pz, F_END_PLAYER, 0.3f)
-                    chain++
-                    chainT = 0.6f
-                    sfx(Sfx.POP, 1.0f + min(chain, 14) * 0.045f, 0.5f)
-                    tick()
-                    interactT = 0.09f
-                    return
-                }
+        // 3) picks: stand still on a source for a beat (no accidental grabs while running past)
+        if (carryN < carryCap() && dwellSt >= 0 && dwellT >= 0.3f && slowOk) {
+            val k = dwellSt
+            val s = st[k]
+            val item = canGive(s)
+            if (item != 0) {
+                takeFrom(s)
+                addCarry(item)
+                flyItem(item, s.x, 1.2f, s.z + 0.4f, px, 1.5f, pz, F_END_PLAYER, 0.3f)
+                chain++
+                chainT = 0.6f
+                sfx(Sfx.POP, 1.0f + min(chain, 14) * 0.045f, 0.5f)
+                tick()
+                interactT = 0.09f
+                return
             }
         }
         interactT = 0.03f
@@ -1150,8 +1167,12 @@ class Game {
         if (c.type >= CT.VLOGGER) {
             vipServed++
             chAdd(CH_VIP, 1.0)
-            gems += 1
-            say("VIP served! +1 gem")
+            if (rnd() < 0.3f) {
+                gems += 1
+                say("VIP served! +1 gem")
+            } else {
+                say("VIP guest paid a fat tip!")
+            }
             sfx(Sfx.VIP, 1f, 0.8f)
             hap(Hap.SUCCESS)
         }
