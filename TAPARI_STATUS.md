@@ -21,3 +21,10 @@ Rule: never run Gradle locally. CI (GitHub Actions) builds debug + signed releas
 
 ## CI log
 (see bottom, updated after each run)
+- Run 1 (bb71d20): success - Release `latest` published (debug 8.0MB + release 6.0MB)
+- Run 2 (26b366e): success - Release `latest` updated
+
+## Next ideas
+- Persist a fixed signing keystore as a repo secret so updates install over older builds (CI currently generates a throwaway keystore each run)
+- Tutorial arrows, more VIP types, per-location unique props
+- Rotate the GitHub PAT used for setup (it was pasted in chat)
