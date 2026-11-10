@@ -333,7 +333,8 @@ data class Hud(
     val goal: String = "",
     val goalFrac: Float = 0f,
     val rush: Int = 0,
-    val jholPct: Int = 100
+    val jholPct: Int = 100,
+    val dark: Int = 0
 )
 
 object Glyph {

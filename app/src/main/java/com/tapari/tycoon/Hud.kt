@@ -359,6 +359,15 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
                         }
                     }
                 }
+                if (hud.dark > 0) {
+                    Pill(border = Color(0xFFB39DDB)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            GIcon(Ic.BOLT, 15.dp)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Load-shedding ${hud.dark}s  tips x1.5", color = Color(0xFFD1C4E9), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
                 if (hud.boost > 0) {
                     Pill(border = GreenOk) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

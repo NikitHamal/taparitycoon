@@ -1,30 +1,36 @@
 # TAPARI_STATUS.md - Momo & Chiya Empire (Tapari Tycoon)
 
 Package: `com.tapari.tycoon` - Repo: https://github.com/NikitHamal/taparitycoon
-Rule: never run Gradle locally. CI (GitHub Actions) builds debug + signed release APKs and publishes the Release `latest`.
+Rule: never run Gradle locally. CI (GitHub Actions) builds ONE signed release APK and publishes Release `latest`.
 
-## Done (session 1)
-- [x] Gradle project (AGP 8.5.2, Kotlin 1.9.24, Compose BOM 2024.06, minSdk 26), wrapper files, `.github/workflows/build-release.yml`
-- [x] OpenGL ES 3.0 low-poly engine (`Gfx.kt`, `GameRenderer.kt`, `Scene.kt`, `Atlas.kt`): dynamic zero-alloc batches, matrix stack, procedural shapes, sprite atlas drawn with Canvas, warm sun + hemisphere light, blob shadows, billboard bubbles / steam / sparks, ground pads with live cash countdown
-- [x] Game simulation (`Game.kt`): maida/meat -> prep -> Moktu -> plates -> tables -> cash piles, Extra Jhol cauldron + angry flip-outs, Chiya & Churot camper corner (No-Camping vs Surya/Samosa upsell, mutually exclusive), VIP vloggers/bikers/tourists, 4 hireable staff roles with real hauling AI, 4 franchise locations, daily challenges, gems, prestige (franchise rebirth), boost
-- [x] Audio synth (`AudioFx.kt`): generated SFX (SoundPool) + street ambience loop (traffic, horns, temple bell, bansuri flute); haptics
-- [x] Save/load + offline earnings (`Persist.kt`)
-- [x] Compose HUD (`Hud.kt`, `MainActivity.kt`): floating joystick, cash/gem pills, flashing EXTRA JHOL EMPTY alert, upgrade sheet, franchise map, daily challenges, settings, offline dialog
+## CI / signing (session 2)
+- Workflow `.github/workflows/build-release.yml` triggers only on pushes to `main` that touch `app/**`, `gradle/**`, `keystore/**`, root gradle files or the workflow itself. Docs / status / README pushes and PRs never build.
+- Only `assembleRelease` runs. Output: `TapariTycoon-release.apk` (Release tag `latest`).
+- Signing uses the committed public keystore `keystore/tapari-release.p12` (alias `tapari`, password `tapari123`), identical in every build so updates install over old ones. Play re-signs in production, so it is intentionally public.
 
-## Verified (session 1)
-- CI run #1 green: debug + signed release APK published to Release `latest`
-- Headless JVM harness (not committed) ran 20 simulated minutes of Game + Scene with a bot: no exceptions, full economy loop works, peak 73k verts / 85k idx (buffers 120k/260k)
-- Fixed: accidental pickups when running past crates (zones shrunk, 0.3s dwell + slow-speed gate), VIP gem rate 30%
+## Session 1 (done)
+- OpenGL ES 3.0 low-poly engine (`Gfx.kt`, `GameRenderer.kt`, `Atlas.kt`), game sim (`Game.kt`), audio synth (`AudioFx.kt`), save/offline (`Persist.kt`), Compose HUD.
 
-## Layout / file map
-`Defs.kt` constants + layout + formatting - `Game.kt` simulation - `Scene.kt` all 3D drawing - `Gfx.kt` GL batches - `Atlas.kt` textures - `GameRenderer.kt` camera + passes - `AudioFx.kt` - `Persist.kt` - `Hud.kt` - `MainActivity.kt`
+## Session 2 (this overhaul)
+- ROOT CAUSE of "characters not visible / far off": `person()` never reset the matrix, so every character was drawn offset by the last station's transform. New `Rig.person()` always starts with `loadId()`.
+- `Rig.kt`: articulated characters (thigh/knee/shin, shoulder/elbow/hand, torso lean + twist, neck/head look-around, blink, eyebrows + mouth moods, hair styles, Dhaka topi / chef cap / bandana / helmet / sun hat / hoodie / cap, apron, tie, backpack, camera, glasses, scarf/dupatta, biker jacket, ring-light phone). Poses: walk, carry, eat, cheer, angry, work, phone, yell. Customers yell with raised arm + open mouth when they want Extra Jhol, cheer after paying, stomp when angry.
+- `City.kt`: world builder. Footpath stage with TO-LET shutter facade, awning, bulbs, gas cylinder, FOR SALE board; buying the shop animates walls rising, shutter rolling up, signboard dropping in. Street with sidewalk, kerb, zebra, lamps, poles + wires, trees, moving buses/cars/bikes/trucks, pedestrians, neighbour shopfronts, skyline, Himalayas, Boudha-style stupa, pagoda, prayer flags. Per-location themes (Baneshwor, New Road, Jhamsikhel rooftop, night Global plaza).
+- Layout is ~1.3x bigger (`Defs.kt` `Layout`), new station id 17 = `BUILDING` pad. Tables 4-6, Chiya kettle and benches only appear after the building is bought (`Station.avail`). Locations 2-4 start with the building owned.
+- Pads now need a 0.4s still dwell before paying and a slow speed (no more accidental spending while running). Pickup dwell kept.
+- Speech bubbles are compact icon bubbles (vector-drawn in `Atlas.kt`), max 7 on screen, priority scored (jhol/angry/VIP first), stacked max 2 levels so crowds stay readable.
+- Guidance arrow (`Scene.drawGuide`) over the next useful station; HUD objective card with live progress (`Game.computeGoal`), tourist-bus Rush Hour random event.
+- `Icons.kt`: custom Canvas icon set (no emoji anywhere). `Hud.kt`: cleaner HUD (cash/gem pills, objective, jhol gauge only when it matters, carry chip, bottom dock, pause menu), floating joystick whose base follows the thumb with a dead zone. `Screens.kt`: loading screen + main menu (live orbiting 3D shop behind it) + how-to-play. `MainActivity.kt`: LOADING -> MENU -> PLAYING; loading warms save load, audio synth and GL (shaders + atlas) behind the splash.
+- Camera: closer follow camera with look-ahead, orbit in menu.
+
+## Verified
+- Run for 1cc4bd3 (CI-only change): green, signed release APK published with the committed keystore.
+- (see CI log below for later runs)
 
 ## CI log
-(see bottom, updated after each run)
-- Run 1 (bb71d20): success - Release `latest` published (debug 8.0MB + release 6.0MB)
-- Run 2 (26b366e): success - Release `latest` updated
+- Run 1 (bb71d20): success (old workflow, debug + release)
+- Run 2 (26b366e): success
+- Run 3 (1cc4bd3): success - release-only, committed keystore
 
 ## Next ideas
-- Persist a fixed signing keystore as a repo secret so updates install over older builds (CI currently generates a throwaway keystore each run)
-- Tutorial arrows, more VIP types, per-location unique props
-- Rotate the GitHub PAT used for setup (it was pasted in chat)
+- Per-location unique props, more VIP types, tutorial voice lines, achievements, upgrade tiers for Moktu visuals
+- Rotate the GitHub PAT that was pasted in chat

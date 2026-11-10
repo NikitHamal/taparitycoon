@@ -260,6 +260,7 @@ class Game {
     @Volatile var paused = false
     var buildT = 1f
     var rushT = 0f
+    var darkT = 0f
     var rushCd = 70f
     var pickPulse = 0f
     var padDwellT = 0f
@@ -425,6 +426,7 @@ class Game {
         carryN = 0
         buildT = if (owns()) 1f else 0f
         rushT = 0f
+        darkT = 0f
         rushCd = 70f + rnd() * 40f
         padDwellT = 0f
         px = 1f
@@ -604,10 +606,11 @@ class Game {
             if (shake > 0f) shake -= dt
             if (pickPulse > 0f) pickPulse -= dt * 4f
             if (rushT > 0f) rushT -= dt
+            if (darkT > 0f) darkT -= dt
             rushCd -= dt
             if (rushCd <= 0f) {
                 rushCd = 80f + rnd() * 50f
-                if (seatsOpen() >= 4) startRush()
+                if (seatsOpen() >= 4) { if (rnd() < 0.4f) startBlackout() else startRush() }
             }
             updatePlayer(dt)
             updatePads(dt)
@@ -1229,7 +1232,7 @@ class Game {
             CT.TOURIST -> 4.0
             else -> 1.0
         }
-        val amt = base * mul * (1.0 + 0.25 * rnd())
+        val amt = base * mul * (1.0 + 0.25 * rnd()) * (if (darkT > 0f) 1.5 else 1.0)
         s.cashAmt += amt
         s.bills = min(90, s.bills + (if (c.type >= CT.VLOGGER) 4 else 2))
         setBubble(c, Bub.HAPPY, 1.6f)
@@ -1715,6 +1718,13 @@ class Game {
     }
 
     // ---- HUD -------------------------------------------------------------------------------
+    fun startBlackout() {
+        darkT = 22f
+        say("Load-shedding! Candle-light tips x1.5")
+        sfx(Sfx.BELL, 0.7f, 0.8f)
+        hap(Hap.THUMP)
+    }
+
     fun startRush() {
         rushT = 25f
         spawnT = 0.3f
@@ -1798,7 +1808,8 @@ class Game {
             tick = (time * 8f).toInt(), toast = toast, toastSeq = toastSeq, vip = vipHere,
             bldg = owns(), goal = goalTxt, goalFrac = goalF,
             rush = if (rushT > 0f) rushT.toInt() else 0,
-            jholPct = (jf * 100f).toInt()
+            jholPct = (jf * 100f).toInt(),
+            dark = if (darkT > 0f) darkT.toInt() else 0
         )
     }
 }

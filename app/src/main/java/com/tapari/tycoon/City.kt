@@ -81,9 +81,9 @@ class City(private val g: Game) {
     // ---------------------------------------------------------------- floor
     private fun drawFloor(loc: Int, e: Float) {
         val owned = e > 0.3f
-        for (ix in 0 until 13) {
+        for (ix in 0 until 15) {
             for (iz in 0 until 12) {
-                val x = -11f + 2f * ix
+                val x = -13f + 2f * ix
                 val z = -9f + 2f * iz
                 val chk = ((ix + iz) and 1) == 0
                 val col: Int

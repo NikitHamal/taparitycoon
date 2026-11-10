@@ -35,6 +35,7 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
     private var camX = 0f
     private var camZ = 0f
     private var camInit = false
+    private var dim = 1f
     private var menuBlend = 1f
     private var menuTarget = 1f
     @Volatile var framesDrawn = 0
@@ -92,8 +93,11 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         game.update(dt)
 
         val loc = game.loc
+        val dimTarget = if (game.darkT > 0f) 0.5f else 1f
+        dim += (dimTarget - dim) * min(1f, dt * 2f)
         val cc = Theme.CLEAR[loc]
-        GLES30.glClearColor(cc[0], cc[1], cc[2], 1f)
+        val cd = 0.45f + 0.55f * dim
+        GLES30.glClearColor(cc[0] * cd, cc[1] * cd, cc[2] * cd, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
 
         // ---- camera ----
@@ -126,7 +130,7 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         val ex = fx + sin(yaw) * cp * dist
         val ey = sin(pitch) * dist
         val ez = fz + cos(yaw) * cp * dist
-        Mat.perspective(proj, 36f, ar, 4f, 190f)
+        Mat.perspective(proj, 36f, ar, 8f, 190f)
         Mat.lookAt(view, ex, ey, ez, fx + shx, 0f, fz + shz)
         Mat.mul(vp, proj, view)
 
@@ -141,9 +145,9 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         val sun = Theme.SUN[loc]
         val sky = Theme.SKYAMB[loc]
         val gnd = Theme.GNDAMB[loc]
-        GLES30.glUniform3f(uSunCol, sun[0], sun[1], sun[2])
-        GLES30.glUniform3f(uSky, sky[0], sky[1], sky[2])
-        GLES30.glUniform3f(uGround, gnd[0], gnd[1], gnd[2])
+        GLES30.glUniform3f(uSunCol, sun[0] * dim, sun[1] * dim, sun[2] * dim)
+        GLES30.glUniform3f(uSky, sky[0] * (0.5f + 0.5f * dim), sky[1] * (0.5f + 0.5f * dim), sky[2] * (0.55f + 0.45f * dim))
+        GLES30.glUniform3f(uGround, gnd[0] * (0.5f + 0.5f * dim), gnd[1] * (0.5f + 0.5f * dim), gnd[2] * (0.55f + 0.45f * dim))
         lit.flush()
 
         // ---- sprite passes ----
