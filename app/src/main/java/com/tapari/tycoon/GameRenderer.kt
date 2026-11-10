@@ -145,8 +145,13 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         val sun = Theme.SUN[loc]
         val sky = Theme.SKYAMB[loc]
         val gnd = Theme.GNDAMB[loc]
-        GLES30.glUniform3f(uSunCol, sun[0] * dim, sun[1] * dim, sun[2] * dim)
-        GLES30.glUniform3f(uSky, sky[0] * (0.5f + 0.5f * dim), sky[1] * (0.5f + 0.5f * dim), sky[2] * (0.55f + 0.45f * dim))
+        // slow golden-hour cycle: the sun warms up and the sky cools down every few minutes
+        val w = 0.5f + 0.5f * sin(game.time * 0.03f)
+        val sr = sun[0] * (1f + 0.12f * w)
+        val sgc = sun[1] * (1f - 0.1f * w)
+        val sbc = sun[2] * (1f - 0.28f * w)
+        GLES30.glUniform3f(uSunCol, sr * dim, sgc * dim, sbc * dim)
+        GLES30.glUniform3f(uSky, sky[0] * (0.5f + 0.5f * dim) * (1f - 0.04f * w), sky[1] * (0.5f + 0.5f * dim), sky[2] * (0.55f + 0.45f * dim) * (1f + 0.05f * w))
         GLES30.glUniform3f(uGround, gnd[0] * (0.5f + 0.5f * dim), gnd[1] * (0.5f + 0.5f * dim), gnd[2] * (0.55f + 0.45f * dim))
         lit.flush()
 

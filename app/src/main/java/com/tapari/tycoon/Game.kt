@@ -167,6 +167,7 @@ class Game {
         val STAFF_COL = intArrayOf(
             Col.rgb(0xF28C28), Col.rgb(0xD6382F), Col.rgb(0xE85A9B), Col.rgb(0x3A6FD8)
         )
+        val TITLES = arrayOf("Thela Wala", "Momo Dai", "Chiya Master", "Sahuji", "Mahasahu", "Momo Emperor")
         const val SPIN_CD = 15L * 60L * 1000L
         const val NACH = 13
         val ACH_NAME = arrayOf(
@@ -452,10 +453,13 @@ class Game {
             achSeen = achSeen or m
         }
         if (lv > lvlSeen) {
-            val g = lv - lvlSeen
+            var g = 0
+            for (k in lvlSeen + 1..lv) if (k % 3 == 0) g++
             lvlSeen = lv
             gems += g
-            say("Level up! Boss level " + lv + "  +" + g + " gem")
+            val bonus = max(incomeEma * 60.0, 100.0 * Locs.MULT[loc])
+            earn(bonus)
+            say("Level up! " + TITLES[min(TITLES.size - 1, (lv - 1) / 4)] + " (Lv " + lv + ")  +Rs " + fmtMoney(bonus) + (if (g > 0) "  +" + g + " gem" else ""))
             label(px, 2.9f, pz, Lbl.LEVEL)
             confetti(px, 1.5f, pz, 26)
             sfx(Sfx.VIP, 1f, 0.9f)
@@ -1151,7 +1155,7 @@ class Game {
             return
         }
         // 3) picks: stand still on a source for a beat (no accidental grabs while running past)
-        if (carryN < carryCap() && dwellSt >= 0 && dwellT >= 0.3f && slowOk) {
+        if (carryN < carryCap() && dwellSt >= 0 && dwellT >= 0.2f && slowOk) {
             val k = dwellSt
             val s = st[k]
             val item = canGive(s)

@@ -140,7 +140,7 @@ fun LoadingScreen(progress: Float, message: String) {
                         drawCircle(Color.White.copy(alpha = 0.55f * (1f - ph)), 10f + ph * 22f, Offset(x, y))
                     }
                 }
-                GIcon(Ic.STEAMER, 140.dp)
+                GBadge(Ic.MOMO, 128.dp, Color(0xFFFFB02E), Color(0xFFE5472F), glyph = Color(0xFFFFF4DC), ring = Color(0xAAFFF4DC))
             }
             Spacer(Modifier.height(10.dp))
             TitleBlock(true)
