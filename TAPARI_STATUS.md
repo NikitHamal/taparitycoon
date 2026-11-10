@@ -25,3 +25,8 @@ Rule: never run Gradle locally. CI (GitHub Actions) builds ONE signed release AP
 ## Next ideas
 - Per-location unique props, more VIP types, tutorial voice lines, Moktu visual tiers
 - Rotate the GitHub PAT that was pasted in chat
+
+## Session 3 log (CI)
+- 7374b7b: failed (missing `dp` import in Icons.kt) -> fixed
+- fixed import, 121ee73 (festival event, plate steam, coin hover), ba977d8 (golden hour light, level reward balance): green
+- Glyph bounding boxes normalised (`GlyphData.BBOX`) so coins / crown / mountain icons are not tiny (checked by rasterising the paths offline with resvg).

@@ -105,7 +105,7 @@ object GlyphLib {
 
     fun vb(key: String): Float {
         val i = idx[key] ?: return 24f
-        return GlyphData.VB[i]
+        return maxOf(GlyphData.BBOX[i * 4 + 2], GlyphData.BBOX[i * 4 + 3]) * 1.08f
     }
 
     fun path(key: String): android.graphics.Path? {
@@ -115,6 +115,12 @@ object GlyphLib {
         if (p == null) {
             try {
                 p = PathParser.createPathFromPathData(GlyphData.PATHS[i])
+                val bx = GlyphData.BBOX[i * 4]
+                val by = GlyphData.BBOX[i * 4 + 1]
+                val bw = GlyphData.BBOX[i * 4 + 2]
+                val bh = GlyphData.BBOX[i * 4 + 3]
+                val sz = maxOf(bw, bh) * 1.08f
+                p.offset(-bx + (sz - bw) / 2f, -by + (sz - bh) / 2f)
                 cache[i] = p
             } catch (e: Throwable) {
                 bad[i] = true
