@@ -169,18 +169,18 @@ class Game {
         )
         val TITLES = arrayOf("Thela Wala", "Momo Dai", "Chiya Master", "Sahuji", "Mahasahu", "Momo Emperor")
         const val SPIN_CD = 15L * 60L * 1000L
-        const val NACH = 13
+        const val NACH = 14
         val ACH_NAME = arrayOf(
             "First Plate", "Momo Master", "Momo Legend", "Chiya Wala", "VIP Magnet", "Combo Starter", "Combo King",
-            "Lucky Finder", "Street Sprinter", "Lakhpati", "Empire Builder", "Franchise Reborn", "Spice Keeper"
+            "Lucky Finder", "Street Sprinter", "Lakhpati", "Empire Builder", "Franchise Reborn", "Spice Keeper", "Kukur Whisperer"
         )
         val ACH_DESC = arrayOf(
             "Serve your first plate of momo", "Serve 100 momo plates", "Serve 1000 momo plates", "Serve 50 cups of chiya",
             "Serve 10 VIP guests", "Reach a x10 combo", "Reach a x25 combo", "Catch 5 Golden Momos", "Dash 50 times",
-            "Earn Rs 100K in total", "Own 3 franchise locations", "Rebirth your franchise", "Refill the jhol cauldron 30 times"
+            "Earn Rs 100K in total", "Own 3 franchise locations", "Rebirth your franchise", "Refill the jhol cauldron 30 times", "Chase off the stray dog 5 times"
         )
-        val ACH_TARGET = doubleArrayOf(1.0, 100.0, 1000.0, 50.0, 10.0, 10.0, 25.0, 5.0, 50.0, 100000.0, 3.0, 1.0, 30.0)
-        val ACH_GEMS = intArrayOf(1, 3, 8, 3, 4, 2, 6, 4, 3, 5, 6, 5, 3)
+        val ACH_TARGET = doubleArrayOf(1.0, 100.0, 1000.0, 50.0, 10.0, 10.0, 25.0, 5.0, 50.0, 100000.0, 3.0, 1.0, 30.0, 5.0)
+        val ACH_GEMS = intArrayOf(1, 3, 8, 3, 4, 2, 6, 4, 3, 5, 6, 5, 3, 4)
         val PRIZE_NAME = arrayOf("Cash bag", "+2 gems", "Chiya Rush 60s", "Big cash", "Double cash 60s", "+5 gems", "Cash bag", "JACKPOT")
         val PRIZE_W = intArrayOf(22, 18, 14, 10, 14, 4, 14, 4)
         val STREAK_GEMS = intArrayOf(1, 1, 2, 2, 3, 4, 8)
@@ -388,7 +388,7 @@ class Game {
     // =====================================================================
     fun lvl(id: Int): Int = upg[loc][id]
     fun owns(): Boolean = ((padMask[loc] shr Layout.ID_BUILDING) and 1) == 1
-    fun playerSpeed(): Float = (5.0f + 0.32f * lvl(Up.SPEED)) * (if (boostT > 0f) 1.25f else 1f)
+    fun playerSpeed(): Float = (5.0f + 0.32f * lvl(Up.SPEED)) * (if (boostT > 0f) 1.25f else 1f) * (if (combo >= 10) 1.08f else 1f)
     fun moktuTop(): Float = 1.52f + 0.5f * (2 + lvl(Up.MOKTU) / 4)
     fun carryCap(): Int = 6 + 2 * lvl(Up.CARRY)
     fun gemMult(): Double = 1.0 + 0.05 * gems
@@ -424,7 +424,8 @@ class Game {
         9 -> lifetime
         10 -> Integer.bitCount(locMask).toDouble()
         11 -> rebirths.toDouble()
-        else -> jarsFilled.toDouble()
+        12 -> jarsFilled.toDouble()
+        else -> dogsShooed.toDouble()
     }
 
     fun achDone(i: Int): Boolean = achVal(i) >= ACH_TARGET[i]
@@ -797,7 +798,7 @@ class Game {
             }
             incomeEma = 0.0
             platesServed = 0L; chiyaServed = 0L; vipServed = 0L; angryLeft = 0L
-            bestCombo = 0; goldCount = 0; dashCount = 0; rebirths = 0; jarsFilled = 0; achClaimed = 0
+            bestCombo = 0; goldCount = 0; dashCount = 0; rebirths = 0; jarsFilled = 0; dogsShooed = 0; achClaimed = 0
             nextSpinAt = 0L; streak = 0; lastClaimDay = 0; achInit = false
             offlineEarn = 0.0; offlineSecs = 0L
             dayKey = 0
@@ -1415,7 +1416,7 @@ class Game {
         val vipChance = 0.08f + 0.02f * loc
         if (r < vipChance) {
             type = CT.VLOGGER + (rnd() * 3f).toInt().coerceIn(0, 2)
-        } else if (benchesOpen() && rnd() < 0.32f) {
+        } else if (benchesOpen() && rnd() < (if (rainT > 0f) 0.62f else 0.32f)) {
             type = CT.STUDENT
         }
         val seatCode = findSeat(type == CT.STUDENT)

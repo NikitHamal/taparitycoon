@@ -250,7 +250,7 @@ internal fun StreakCard(game: Game, audio: AudioFx) {
 // Achievements
 // ---------------------------------------------------------------------------------------------
 private val ACH_IC = arrayOf(
-    Ic.MOMO, Ic.MOMO, Ic.CROWN, Ic.CUP, Ic.CAMERA, Ic.FIRE, Ic.FIRE, Ic.STAR, Ic.DASH, Ic.CASH, Ic.GLOBE, Ic.REFRESH, Ic.CHILI
+    Ic.MOMO, Ic.MOMO, Ic.CROWN, Ic.CUP, Ic.CAMERA, Ic.FIRE, Ic.FIRE, Ic.STAR, Ic.DASH, Ic.CASH, Ic.GLOBE, Ic.REFRESH, Ic.CHILI, Ic.HEART
 )
 
 @Composable
