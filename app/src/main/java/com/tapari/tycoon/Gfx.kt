@@ -102,10 +102,16 @@ layout(location=2) in vec4 aCol;
 out vec3 vCol;
 void main() {
   vec3 n = normalize(aNrm);
-  float d = max(dot(n, uSunDir), 0.0);
+  float nd = dot(n, uSunDir);
+  float d = clamp(nd * 0.82 + 0.18, 0.0, 1.0);
+  d = d * d * (3.0 - 2.0 * d);
   vec3 amb = mix(uGround, uSky, n.y * 0.5 + 0.5);
-  float ao = mix(0.86, 1.0, smoothstep(0.0, 0.8, aPos.y));
-  vec3 lit = aCol.rgb * (amb + uSunCol * d) * ao;
+  float vert = 1.0 - clamp(n.y, 0.0, 1.0);
+  float ao = mix(1.0, mix(0.7, 1.0, smoothstep(0.0, 1.2, aPos.y)), vert);
+  float rim = pow(1.0 - clamp(n.y * 0.5 + 0.5, 0.0, 1.0), 2.0) * 0.06;
+  vec3 lit = aCol.rgb * (amb + uSunCol * d) * ao + rim * uSunCol;
+  float l = dot(lit, vec3(0.299, 0.587, 0.114));
+  lit = mix(vec3(l), lit, 1.14);
   vCol = mix(aCol.rgb, lit, aCol.a);
   gl_Position = uVP * vec4(aPos, 1.0);
 }
@@ -416,6 +422,13 @@ class LitBatch(private val maxV: Int, private val maxI: Int) {
     fun scale(k: Float) {
         val b = top * 16
         for (i in 0 until 12) m[b + i] *= k
+    }
+
+    /** Non-uniform scale in local axes (used for squash and stretch). */
+    fun scaleXYZ(sx: Float, sy: Float, sz: Float) {
+        val b = top * 16
+        for (i in 0 until 4) { m[b + i] *= sx; m[b + 4 + i] *= sy; m[b + 8 + i] *= sz }
+        m[b + 3] = 0f; m[b + 7] = 0f; m[b + 11] = 0f
     }
 
     // ---- primitives ----

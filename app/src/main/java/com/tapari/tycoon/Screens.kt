@@ -106,14 +106,14 @@ private fun TitleBlock(big: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             "MOMO & CHIYA", color = Color(0xFFFFF4DC), fontSize = if (big) 30.sp else 26.sp, fontWeight = FontWeight.Black,
-            style = TextStyle(shadow = sh, letterSpacing = 3.sp)
+            style = TextStyle(fontFamily = Poppins, shadow = sh, letterSpacing = 3.sp)
         )
         Text(
             "EMPIRE", color = Gold, fontSize = if (big) 64.sp else 52.sp, fontWeight = FontWeight.Black, lineHeight = if (big) 62.sp else 50.sp,
-            style = TextStyle(shadow = sh, letterSpacing = 6.sp)
+            style = TextStyle(fontFamily = Poppins, shadow = sh, letterSpacing = 6.sp)
         )
         Box(Modifier.background(Color(0xFFD6382F), RoundedCornerShape(50)).padding(horizontal = 14.dp, vertical = 3.dp)) {
-            Text("TAPARI TYCOON", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Black, style = TextStyle(letterSpacing = 3.sp))
+            Text("TAPARI TYCOON", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Black, style = TextStyle(fontFamily = Poppins, letterSpacing = 3.sp))
         }
     }
 }

@@ -90,6 +90,8 @@ class Rig {
     var seed = 0f
     var hop = 0f
     var lookX = 0f
+    var sq = 0f       // squash (+) / stretch (-)
+    var lean2 = 0f    // extra forward lean (dash)
 
     private val WHITE = Col.rgb(0xFFFFFF)
     private val EYE = Col.rgb(0x1B1B22)
@@ -119,6 +121,7 @@ class Rig {
         b.loadId()
         b.translate(x, y0 + bob + dy + hopY, z)
         b.rotY(heading + spin)
+        if (sq != 0f) b.scaleXYZ(1f + sq * 0.5f, 1f - sq, 1f + sq * 0.5f)
 
         val hip = 0.87f
         if ((acc and Acc.KURTA) != 0 && !seated) {
@@ -158,6 +161,7 @@ class Rig {
         if (arm == Pose.EAT) lean += 0.11f + 0.04f * sin(t * 7f + seed)
         if (arm == Pose.ANGRY) lean += 0.12f
         if (seated) lean += 0.05f
+        lean += lean2
         b.rotX(lean)
         b.rotY(sp * 0.21f * mvv)
         b.rotZ(cp * 0.04f * mvv + shake)
@@ -289,6 +293,8 @@ class Rig {
         b.pop()
         // Always reset matrix after drawing a character so callers never inherit transforms!
         b.loadId()
+        sq = 0f
+        lean2 = 0f
     }
 
     private fun drawHead(b: LitBatch) {

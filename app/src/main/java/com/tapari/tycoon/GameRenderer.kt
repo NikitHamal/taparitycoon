@@ -123,14 +123,14 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         }
         val ar = if (aspect < 0.3f) 0.3f else aspect
         val distScale = (0.5f / ar).coerceIn(0.8f, 1.3f)
-        val dist = 21.5f * distScale * (1f - mb) + 38f * mb
+        val dist = (21.5f + 1.2f * game.dashK) * distScale * (1f - mb) + 38f * mb
         val fx = camX * (1f - mb) + 1.5f * mb
         val fz = camZ * (1f - mb) + 1.0f * mb
         val cp = cos(pitch)
         val ex = fx + sin(yaw) * cp * dist
         val ey = sin(pitch) * dist
         val ez = fz + cos(yaw) * cp * dist
-        Mat.perspective(proj, 36f, ar, 8f, 190f)
+        Mat.perspective(proj, 36f + 4.5f * game.dashK, ar, 8f, 190f)
         Mat.lookAt(view, ex, ey, ez, fx + shx, 0f, fz + shz)
         Mat.mul(vp, proj, view)
 

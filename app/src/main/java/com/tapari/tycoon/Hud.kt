@@ -78,6 +78,7 @@ internal val Ink = Color(0xFF2B1418)
 fun TapariTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(primary = Gold, onPrimary = Ink, secondary = GreenOk, surface = PanelBg),
+        typography = poppinsTypography(),
         content = content
     )
 }
@@ -139,17 +140,17 @@ private fun DockBtn(ic: Ic, label: String, badge: String, onClick: () -> Unit) {
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
                 .clickable(interactionSource = src, indication = null) { onClick() }
-                .padding(horizontal = 10.dp, vertical = 4.dp)
+                .padding(horizontal = 5.dp, vertical = 4.dp)
         ) {
             Box(
                 Modifier
-                    .size(46.dp)
+                    .size(42.dp)
                     .background(Brush.verticalGradient(listOf(Color(0xFF4A2D34), Color(0xFF2A171C))), RoundedCornerShape(15.dp))
                     .border(1.5.dp, Color(0x88FFB02E), RoundedCornerShape(15.dp)),
                 contentAlignment = Alignment.Center
-            ) { GIcon(ic, 28.dp) }
+            ) { GIcon(ic, 26.dp) }
             Spacer(Modifier.height(2.dp))
-            Text(label, color = Cream, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = Cream, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         }
         if (badge.isNotEmpty()) {
             Box(
@@ -171,7 +172,7 @@ private fun locIcon(l: Int): Ic = when (l) {
     else -> Ic.GLOBE
 }
 
-private val UP_ICON = arrayOf(Ic.SHOE, Ic.BAG, Ic.TAG, Ic.STEAMER, Ic.CHILI, Ic.CHEF, Ic.POT, Ic.CUP, Ic.CASH, Ic.NOCAMP, Ic.SMOKE)
+private val UP_ICON = arrayOf(Ic.SHOE, Ic.BAG, Ic.TAG, Ic.STEAMER, Ic.CHILI, Ic.CHEF, Ic.POT, Ic.CUP, Ic.CASH, Ic.NOCAMP, Ic.SMOKE, Ic.MAGNET, Ic.FIRE, Ic.DASH)
 
 @Composable
 fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: () -> Unit, saveNow: () -> Unit) {
@@ -267,6 +268,17 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
             }
         }
 
+        VignetteOverlay()
+
+        // ---------------- dash button ----------------
+        DashButton(
+            hud,
+            Modifier
+                .align(Alignment.BottomEnd)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(end = 14.dp, bottom = 112.dp)
+        ) { if (game.dash()) { moved = true } }
+
         // ---------------- top area ----------------
         Row(
             Modifier
@@ -350,6 +362,25 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
                         contentAlignment = Alignment.Center
                     ) { GIcon(Ic.PAUSE, 18.dp) }
                 }
+                LevelPill(hud)
+                if (hud.dbl > 0) {
+                    Pill(border = Color(0xFF6BE07B)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            GIcon(Ic.COIN, 15.dp)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Double cash ${hud.dbl}s", color = Color(0xFF9CF0AE), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                if (hud.gold) {
+                    Pill(border = Color(0xFFFFD54A)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            GIcon(Ic.MOMO, 15.dp, tint = Color(0xFFFFD54A))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Golden Momo!", color = Color(0xFFFFE066), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
                 if (hud.rush > 0) {
                     Pill(border = Color(0xFFFFD54A)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -398,6 +429,7 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (hud.combo >= 2) ComboPill(hud, flash)
             if (hud.jholAlert) {
                 Row(
                     Modifier
@@ -465,7 +497,7 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
                 }
             }
             var canUp = false
-            for (id in 0..8) {
+            for (id in intArrayOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13)) {
                 if (game.upg[game.loc][id] < UpDef.MAX[id] && game.money >= game.upgCost(game.loc, id)) { canUp = true; break }
             }
             Row(
@@ -475,9 +507,11 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
                     .padding(horizontal = 6.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                DockBtn(Ic.UP, "Upgrades", if (canUp) "!" else "") { audio.sfx(Sfx.TAP, 1f, 0.5f); tab = 0; panel = 1 }
+                DockBtn(Ic.UP, "Upgrade", if (canUp) "!" else "") { audio.sfx(Sfx.TAP, 1f, 0.5f); tab = 0; panel = 1 }
                 DockBtn(Ic.MAP, "Franchise", "") { audio.sfx(Sfx.TAP, 1f, 0.5f); panel = 2 }
-                DockBtn(Ic.CALENDAR, "Daily", if (hud.ready > 0) hud.ready.toString() else "") { audio.sfx(Sfx.TAP, 1f, 0.5f); panel = 3 }
+                DockBtn(Ic.CALENDAR, "Daily", if (hud.ready > 0 || hud.streakReady) (if (hud.ready > 0) hud.ready.toString() else "!") else "") { audio.sfx(Sfx.TAP, 1f, 0.5f); panel = 3 }
+                DockBtn(Ic.SPIN, "Spin", if (hud.spinReady) "!" else "") { audio.sfx(Sfx.TAP, 1f, 0.5f); panel = 5 }
+                DockBtn(Ic.TROPHY, "Awards", if (hud.achReady > 0) hud.achReady.toString() else "") { audio.sfx(Sfx.TAP, 1f, 0.5f); panel = 6 }
                 DockBtn(Ic.GEM, "Perks", if (hud.canPrestige) "!" else "") { audio.sfx(Sfx.TAP, 1f, 0.5f); tab = 3; panel = 1 }
             }
         }
@@ -504,7 +538,7 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
                 }
                 Spacer(Modifier.height(8.dp))
                 val list = when (tab) {
-                    0 -> intArrayOf(Up.SPEED, Up.CARRY, Up.PRICE, Up.MOKTU, Up.CAULDRON)
+                    0 -> intArrayOf(Up.SPEED, Up.CARRY, Up.PRICE, Up.MOKTU, Up.CAULDRON, Up.MAGNET, Up.COMBOWIN, Up.DASHCD)
                     1 -> intArrayOf(Up.KANCHA, Up.JHOLBHAI, Up.DIDI, Up.DAI)
                     2 -> intArrayOf(Up.NOCAMP, Up.UPSELL)
                     else -> intArrayOf()
@@ -568,8 +602,9 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
             }
         }
         if (panel == 3) {
-            SheetPanel("Daily Challenges", { panel = 0 }) {
+            SheetPanel("Daily Rewards", { panel = 0 }) {
                 LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(1) { StreakCard(game, audio) }
                     items(3) { i ->
                         val prog = game.chProg[i]
                         val target = game.chTarget[i]
@@ -605,6 +640,8 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
                 }
             }
         }
+        if (panel == 5) SpinPanel(game, hud, audio) { panel = 0 }
+        if (panel == 6) AwardsPanel(game, audio) { panel = 0 }
         if (panel == 4) {
             SheetPanel("Paused", { panel = 0 }) {
                 var snd by remember { mutableStateOf(game.soundOn) }
@@ -616,6 +653,10 @@ fun GameHud(game: Game, hud: Hud, audio: AudioFx, pauseSignal: Int, onMainMenu: 
                     Text(
                         "Plates served: ${game.platesServed}   Chiya served: ${game.chiyaServed}\nVIPs: ${game.vipServed}   Angry customers: ${game.angryLeft}\nLifetime earnings: Rs ${fmtMoney(game.lifetime)}",
                         color = Muted, fontSize = 12.sp
+                    )
+                    Text(
+                        "Icons: Google Material Icons (Apache 2.0) and game-icons.net (CC BY 3.0) by " + GlyphData.CREDITS + ". Font: Poppins (SIL OFL).",
+                        color = Color(0xFF8A766E), fontSize = 9.sp, lineHeight = 12.sp
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         BigButton("Save", Modifier.weight(1f), top = Color(0xFF8BE6FF), bottom = Color(0xFF35A6D8), icon = Ic.CHECK) { saveNow() }

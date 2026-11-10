@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
         ctl.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         game.paused = true
+        Atlas.init(this)
         audio = AudioFx(this, game)
         audio.init()
         game.fx = audio
@@ -74,7 +75,7 @@ class MainActivity : ComponentActivity() {
                         factory = { ctx ->
                             GLSurfaceView(ctx).apply {
                                 setEGLContextClientVersion(3)
-                                setEGLConfigChooser(8, 8, 8, 8, 24, 0)
+                                setEGLConfigChooser(MsaaChooser())
                                 preserveEGLContextOnPause = false
                                 setRenderer(renderer)
                                 renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY

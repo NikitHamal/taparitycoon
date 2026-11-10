@@ -75,6 +75,7 @@ class Scene(private val g: Game) {
         drawCustomers()
         drawStaff()
         if (!g.paused) drawPlayer()
+        drawGold()
         drawParticles()
         if (!g.paused) drawGuide()
         drawBubbles()
@@ -99,8 +100,14 @@ class Scene(private val g: Game) {
         b.quad(x, y, z, rX, rY, rZ, uX, uY, uZ, size * 0.5f, size * 0.5f, id, col)
     }
 
-    private fun num(b: SpriteBatch, ground: Boolean, v: Double, cx: Float, cy: Float, cz: Float, h: Float, col: Int, coin: Boolean) {
-        val n = Glyph.format(v, gl)
+    private fun num(b: SpriteBatch, ground: Boolean, v: Double, cx: Float, cy: Float, cz: Float, h: Float, col: Int, coin: Boolean, xPrefix: Boolean = false) {
+        val n: Int
+        if (xPrefix) {
+            gl[0] = Glyph.X
+            n = Glyph.formatAt(v, gl, 1)
+        } else {
+            n = Glyph.format(v, gl)
+        }
         var total = 0f
         for (k in 0 until n) total += Atlas.ADV[gl[k]] * h
         if (coin) total += h * 0.95f
@@ -254,7 +261,7 @@ class Scene(private val g: Game) {
         shadow(x, z, 4.2f)
         L.loadId(); L.translate(x, 0f, z)
         L.box(0f, 0.5f, 0f, 2.9f, 1.0f, 2.5f, Col.rgb(0x3B3F46))
-        L.box(0f, 0.3f, 1.26f, 1.8f, 0.3f, 0.06f, FIRE)
+        L.box(0f, 0.3f, 1.26f, 1.8f, 0.3f, 0.06f, Col.emis(0xFF8A1F, 40 + (45f * (0.5f + 0.5f * sin(t * 17f))).toInt()))
         L.box(0f, 0.97f, 1.55f, 2.2f, 0.08f, 0.8f, STEEL)
         val bounce = s.flash * 0.05f * sin(t * 40f)
         for (k in 0 until 4) {
@@ -262,8 +269,10 @@ class Scene(private val g: Game) {
             L.box(1.2f, 1.25f + k * 0.5f, 0f, 0.14f, 0.1f, 0.3f, STEEL_D)
             L.box(-1.2f, 1.25f + k * 0.5f, 0f, 0.14f, 0.1f, 0.3f, STEEL_D)
         }
-        L.sph(0f, 3.02f, 0f, 1.0f, 0.38f, 1.0f, Col.rgb(0xD8DEE3))
-        L.sph(0f, 3.4f, 0f, 0.14f, 0.14f, 0.14f, DARK)
+        val rat = if (s.raw > 0) sin(t * 38f) * 0.03f else 0f
+        val lift = abs(rat) * 1.6f
+        L.sph(rat, 3.02f + lift, 0f, 1.0f, 0.38f, 1.0f, Col.rgb(0xD8DEE3))
+        L.sph(rat, 3.4f + lift, 0f, 0.14f, 0.14f, 0.14f, DARK)
         // plates stacked on the front ledge
         val n = s.stockA
         for (k in 0 until n) {
@@ -518,11 +527,65 @@ class Scene(private val g: Game) {
             r.hop = 0f
             r.lookX = 0f
             r.person(c.x, y0, c.z)
+            if (c.state == Game.CS_WAIT && c.patience < c.patMax * 0.8f) bar(c.x, 2.15f, c.z, c.patience / c.patMax)
+            else if (c.state == Game.CS_EAT && c.wantJhol) bar(c.x, 2.15f, c.z, 1f - c.jholAnger)
             if (c.type >= CT.VLOGGER && c.bubble < 0) {
                 val sc = 0.3f + 0.05f * sin(t * 5f + i)
                 bIcon(SB, Atlas.STAR, c.x, 2.85f + 0.1f * sin(t * 3f + i), c.z, sc * 2f, Col.tint(1f, 0.85f, 0.25f, 1f))
             }
         }
+    }
+
+    private fun bar(x: Float, y: Float, z: Float, f0: Float) {
+        val f = f0.coerceIn(0f, 1f)
+        val hw = 0.5f
+        SB.quad(x, y, z, rX, rY, rZ, uX, uY, uZ, hw + 0.05f, 0.1f, Atlas.I_BAR, Col.tint(0.1f, 0.06f, 0.08f, 0.75f))
+        val fw = hw * f
+        val off = -hw + fw
+        SB.quad(x + rX * off, y + rY * off, z + rZ * off, rX, rY, rZ, uX, uY, uZ, fw, 0.065f, Atlas.I_BAR,
+            Col.tint(min(1f, 2f * (1f - f)), min(1f, 2f * f), 0.15f, 1f))
+    }
+
+    private fun drawGold() {
+        if (!g.goldOn) return
+        val gx = g.goldX
+        val gz = g.goldZ
+        val blink = if (g.goldT < 4f) (if (sin(t * 18f) > 0f) 1f else 0.35f) else 1f
+        val gold = Col.emis(0xFFC21A, 150)
+        shadow(gx, gz, 1.8f, 0.3f)
+        val pulse = 1f + 0.12f * sin(t * 5f)
+        SG.quad(gx, 0.05f, gz, gRX, 0f, gRZ, gUX, 0f, gUZ, 1.7f * pulse, 1.7f * pulse, Atlas.RING, Col.tint(1f, 0.82f, 0.2f, blink))
+        SG.quad(gx, 0.048f, gz, gRX, 0f, gRZ, gUX, 0f, gUZ, 1.4f, 1.4f, Atlas.SOFT, Col.tint(1f, 0.8f, 0.2f, 0.35f * blink))
+        if (blink > 0.5f) {
+            val y = 1.15f + 0.25f * sin(t * 3f)
+            L.loadId()
+            L.translate(gx, y, gz)
+            L.rotY(t * 2.4f)
+            L.sphLo(0f, 0f, 0f, 0.62f, 0.5f, 0.62f, gold)
+            L.cone(0f, 0.38f, 0f, 0.2f, 0.28f, Col.emis(0xFFE066, 150))
+            for (k in 0 until 8) {
+                val a = k * 0.7854f
+                L.box(cos(a) * 0.4f, 0.22f, sin(a) * 0.4f, 0.07f, 0.28f, 0.07f, Col.emis(0xFFD54A, 120))
+            }
+            L.loadId()
+            SB.quad(gx, 3.2f, gz, rX, rY, rZ, uX, uY, uZ, 0.9f, 3.2f, Atlas.SOFT, Col.tint(1f, 0.85f, 0.3f, 0.28f))
+            for (k in 0 until 3) {
+                val a = t * 2.2f + k * 2.094f
+                SB.quad(gx + cos(a) * 0.9f, y + 0.2f * sin(t * 6f + k), gz + sin(a) * 0.9f, rX, rY, rZ, uX, uY, uZ, 0.17f, 0.17f, Atlas.STAR, Col.tint(1f, 0.92f, 0.4f, 1f))
+            }
+            bIcon(SO, Atlas.I_GOLD, gx, y + 1.6f + 0.15f * sin(t * 4f), gz, 1.0f, WHITE)
+        }
+    }
+
+    private fun lblCol(id: Int): Int = when (id) {
+        Lbl.PERFECT -> Col.tint(0.6f, 1f, 0.85f, 1f)
+        Lbl.GOLD -> Col.tint(1f, 0.85f, 0.3f, 1f)
+        Lbl.COMBO -> Col.tint(1f, 0.7f, 0.25f, 1f)
+        Lbl.LEVEL -> Col.tint(0.6f, 0.9f, 1f, 1f)
+        Lbl.SPEED -> Col.tint(0.8f, 1f, 1f, 1f)
+        Lbl.LUCKY -> Col.tint(1f, 0.6f, 0.85f, 1f)
+        Lbl.UNLOCK -> Col.tint(0.6f, 1f, 0.6f, 1f)
+        else -> WHITE
     }
 
     private fun drawStaff() {
@@ -582,8 +645,38 @@ class Scene(private val g: Game) {
         val h = g.heading
         shadow(g.px, g.pz, 1.2f)
         val pulse = 1f + 0.06f * sin(g.ringPulse)
-        SG.quad(g.px, 0.05f, g.pz, gRX, 0f, gRZ, gUX, 0f, gUZ, 1.35f * pulse, 1.35f * pulse, Atlas.RING, Col.tint(0.25f, 1f, 0.4f, 1f))
-        SG.quad(g.px, 0.048f, g.pz, gRX, 0f, gRZ, gUX, 0f, gUZ, 1.15f, 1.15f, Atlas.SOFT, Col.tint(0.2f, 0.9f, 0.35f, 0.35f))
+        val cmb = g.combo
+        var cr = 0.25f
+        var cg = 1f
+        var cb = 0.4f
+        if (cmb >= 20) {
+            cr = 0.65f + 0.35f * sin(t * 5f); cg = 0.65f + 0.35f * sin(t * 5f + 2.1f); cb = 0.65f + 0.35f * sin(t * 5f + 4.2f)
+        } else if (cmb >= 15) {
+            cr = 1f; cg = 0.3f; cb = 0.45f
+        } else if (cmb >= 10) {
+            cr = 1f; cg = 0.6f; cb = 0.15f
+        } else if (cmb >= 5) {
+            cr = 1f; cg = 0.92f; cb = 0.25f
+        }
+        val ringSz = 1.35f * pulse * (1f + 0.12f * g.dashK)
+        SG.quad(g.px, 0.05f, g.pz, gRX, 0f, gRZ, gUX, 0f, gUZ, ringSz, ringSz, Atlas.RING, Col.tint(cr, cg, cb, 1f))
+        SG.quad(g.px, 0.048f, g.pz, gRX, 0f, gRZ, gUX, 0f, gUZ, 1.15f, 1.15f, Atlas.SOFT, Col.tint(cr * 0.8f, cg * 0.9f, cb * 0.9f, 0.35f))
+        if (cmb >= 5) {
+            val p2 = 1.95f + 0.25f * sin(t * 6f)
+            SG.quad(g.px, 0.046f, g.pz, gRX, 0f, gRZ, gUX, 0f, gUZ, p2, p2, Atlas.RING, Col.tint(cr, cg, cb, 0.4f))
+            for (k in 0 until 3) {
+                val a = t * 3f + k * 2.094f
+                SB.quad(g.px + cos(a) * 1.55f, 0.55f + 0.2f * sin(t * 4f + k), g.pz + sin(a) * 1.55f, rX, rY, rZ, uX, uY, uZ, 0.2f, 0.2f, Atlas.STAR, Col.tint(cr, cg, cb, 0.9f))
+            }
+        }
+        if (g.dashK > 0.15f) {
+            val sx = sin(h)
+            val sz = cos(h)
+            for (k in -1..1) {
+                val back = 1.1f + 0.35f * abs(k)
+                SG.quad(g.px - sx * back + sz * k * 0.42f, 0.2f, g.pz - sz * back - sx * k * 0.42f, sx, 0f, sz, sz, 0f, -sx, 0.9f * g.dashK, 0.1f, Atlas.SOFT, Col.tint(1f, 1f, 1f, 0.4f * g.dashK))
+            }
+        }
         val r = rig
         r.skin = Col.rgb(0xE8B48A)
         r.hair = Col.rgb(0x1E1A18)
@@ -605,6 +698,8 @@ class Scene(private val g: Game) {
         r.seed = 0.5f
         r.hop = if (g.pickPulse > 0f) g.pickPulse * 0.12f else 0f
         r.lookX = 0f
+        r.sq = (if (g.pickPulse > 0f) sin(g.pickPulse * 3.1416f) * 0.07f else 0f) - 0.08f * g.dashK
+        r.lean2 = 0.35f * g.dashK
         r.person(g.px, 0f, g.pz)
         if (g.carryN > 0) {
             val n = g.carryN
@@ -839,6 +934,39 @@ class Scene(private val g: Game) {
                     L.translate(sx + (g.pVX[i] - sx) * e, g.pY[i] + (g.pVY[i] - g.pY[i]) * e + sin(3.1416f * e) * 0.8f, sz + (g.pVZ[i] - sz) * e)
                     val s = g.pSize[i]
                     L.sphLo(0f, 0f, 0f, s, s, s, Col.emis(0xE0391F, 120))
+                }
+                Game.P_LABEL -> {
+                    val id = g.pVal[i].toInt()
+                    val sc = (0.55f + 0.55f * min(1f, k * 7f)) * (if (k > 0.8f) 1f - (k - 0.8f) * 2.5f else 1f)
+                    val a = if (k > 0.7f) (1f - k) / 0.3f else 1f
+                    val hh = 0.3f * sc
+                    val c = lblCol(id)
+                    val col = (c and 0x00FFFFFF) or ((a * 255f).toInt().coerceIn(0, 255) shl 24)
+                    SO.quad(x, y, z, rX, rY, rZ, uX, uY, uZ, hh * Atlas.LABEL_ASPECT, hh, Atlas.L0 + id, col)
+                }
+                Game.P_COMBO -> {
+                    val sc = (0.6f + 0.6f * min(1f, k * 6f)) * (if (k > 0.8f) 1f - (k - 0.8f) * 2.5f else 1f)
+                    val a = if (k > 0.7f) (1f - k) / 0.3f else 1f
+                    val hh = 0.34f * sc
+                    val c = lblCol(Lbl.COMBO)
+                    val col = (c and 0x00FFFFFF) or ((a * 255f).toInt().coerceIn(0, 255) shl 24)
+                    SO.quad(x, y, z, rX, rY, rZ, uX, uY, uZ, hh * Atlas.LABEL_ASPECT, hh, Atlas.L0 + Lbl.COMBO, col)
+                    num(SO, false, g.pVal[i], x, y - 0.75f * sc, z, 0.95f * sc, (c and 0x00FFFFFF) or ((a * 255f).toInt().coerceIn(0, 255) shl 24), false, true)
+                }
+                Game.P_RIPPLE -> {
+                    val e = 1f - (1f - k) * (1f - k)
+                    val sz = g.pSize[i] * (0.15f + 0.85f * e)
+                    val col = (g.pCol[i] and 0x00FFFFFF) or (((1f - k) * 255f).toInt().coerceIn(0, 255) shl 24)
+                    SG.quad(x, y, z, gRX, 0f, gRZ, gUX, 0f, gUZ, sz, sz, Atlas.RING, col)
+                }
+                Game.P_CONF -> {
+                    val s = g.pSize[i] * (if (k > 0.75f) 1f - (k - 0.75f) * 4f else 1f)
+                    L.loadId()
+                    L.translate(x, y, z)
+                    L.rotY(g.pAge[i] * 9f + i)
+                    L.rotX(g.pAge[i] * 12f)
+                    L.box(0f, 0f, 0f, s, s * 0.14f, s * 0.7f, (g.pCol[i] and 0x00FFFFFF) or (150 shl 24))
+                    L.loadId()
                 }
                 Game.P_NUM -> {
                     val a = (1f - k * k * k)

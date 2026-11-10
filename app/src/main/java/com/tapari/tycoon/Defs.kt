@@ -56,7 +56,10 @@ object Up {
     const val DAI = 8
     const val NOCAMP = 9
     const val UPSELL = 10
-    const val COUNT = 11
+    const val MAGNET = 11
+    const val COMBOWIN = 12
+    const val DASHCD = 13
+    const val COUNT = 14
 }
 
 /** Sound effect ids. */
@@ -73,7 +76,12 @@ object Sfx {
     const val BELL = 9
     const val VIP = 10
     const val TAP = 11
-    const val COUNT = 12
+    const val DASH = 12
+    const val COMBO = 13
+    const val GOLD = 14
+    const val SPIN = 15
+    const val ACHIEVE = 16
+    const val COUNT = 17
 }
 
 /** Haptic kinds. */
@@ -285,7 +293,8 @@ object UpDef {
     val NAME = arrayOf(
         "Player Speed", "Carry Capacity", "Momo Price", "Moktu Tiers", "Jhol Cauldron",
         "Kitchen Kancha", "Jhol Bhai", "Chiya Didi", "Cashier Dai",
-        "No Camping! (Wi-Fi password changed)", "Surya & Samosa Upsell"
+        "No Camping! (Wi-Fi password changed)", "Surya & Samosa Upsell",
+        "Cash Magnet", "Combo Master", "Dash Boots"
     )
     val DESC = arrayOf(
         "Run faster between stations.",
@@ -298,11 +307,14 @@ object UpDef {
         "Serves chiya to benches and brews faster.",
         "Collects cash piles from tables for you.",
         "Students leave right after one cup. Free the benches!",
-        "Campers keep buying Surya & samosas while they debate."
+        "Campers keep buying Surya & samosas while they debate.",
+        "Pull cash piles from further away. No more tiptoeing!",
+        "Combo timer lasts longer and multipliers grow higher.",
+        "Dash recharges faster and lasts longer."
     )
-    val BASE = doubleArrayOf(60.0, 90.0, 120.0, 200.0, 150.0, 250.0, 300.0, 350.0, 400.0, 3000.0, 4500.0)
-    val GROW = doubleArrayOf(1.55, 1.6, 1.7, 1.75, 1.7, 2.1, 2.1, 2.1, 2.1, 1.0, 1.0)
-    val MAX = intArrayOf(15, 15, 25, 10, 8, 5, 5, 5, 5, 1, 1)
+    val BASE = doubleArrayOf(60.0, 90.0, 120.0, 200.0, 150.0, 250.0, 300.0, 350.0, 400.0, 3000.0, 4500.0, 180.0, 220.0, 160.0)
+    val GROW = doubleArrayOf(1.55, 1.6, 1.7, 1.75, 1.7, 2.1, 2.1, 2.1, 2.1, 1.0, 1.0, 1.8, 1.8, 1.7)
+    val MAX = intArrayOf(15, 15, 25, 10, 8, 5, 5, 5, 5, 1, 1, 8, 6, 6)
 }
 
 /** A snapshot of everything the Compose HUD needs. Rebuilt ~8x per second. */
@@ -330,8 +342,34 @@ data class Hud(
     val jholPct: Int = 100,
     val dark: Int = 0,
     val combo: Int = 0,
-    val dashCd: Float = 0f
+    val dashCd: Float = 0f,
+    val comboFrac: Float = 0f,
+    val comboMult: Float = 1f,
+    val dashing: Boolean = false,
+    val dashReady: Boolean = true,
+    val gold: Boolean = false,
+    val spinReady: Boolean = false,
+    val achReady: Int = 0,
+    val streakReady: Boolean = false,
+    val dbl: Int = 0,
+    val level: Int = 1,
+    val levelFrac: Float = 0f,
+    val bestCombo: Int = 0
 )
+
+/** Pop-up label ids (index into the atlas label table). */
+object Lbl {
+    const val COMBO = 0
+    const val PERFECT = 1
+    const val GOLD = 2
+    const val TIP = 3
+    const val GEM = 4
+    const val LEVEL = 5
+    const val SPEED = 6
+    const val UNLOCK = 7
+    const val LUCKY = 8
+    const val FRENZY = 9
+}
 
 object Glyph {
     const val K = 10
@@ -340,6 +378,7 @@ object Glyph {
     const val T = 13
     const val Q = 14
     const val DOT = 15
+    const val X = 16
     private val tmp = IntArray(24)
 
     private fun writeInt(x0: Long, out: IntArray, n0: Int): Int {
@@ -361,8 +400,10 @@ object Glyph {
         return n
     }
 
-    /** Formats v into glyph codes without allocating. Returns glyph count. */
-    fun format(v0: Double, out: IntArray): Int {
+    fun format(v0: Double, out: IntArray): Int = formatAt(v0, out, 0)
+
+    /** Formats v into glyph codes without allocating, starting at out[start]. Returns the end index. */
+    fun formatAt(v0: Double, out: IntArray, start: Int): Int {
         var v = if (v0 < 0.0) 0.0 else v0
         var suf = 0
         while (v >= 1000.0 && suf < 5) {
@@ -371,13 +412,13 @@ object Glyph {
         }
         var n: Int
         if (suf == 0) {
-            n = writeInt(v.toLong(), out, 0)
+            n = writeInt(v.toLong(), out, start)
         } else {
             if (v >= 100.0) {
-                n = writeInt(v.toLong(), out, 0)
+                n = writeInt(v.toLong(), out, start)
             } else {
                 val scaled = (v * 10.0).toLong()
-                n = writeInt(scaled / 10L, out, 0)
+                n = writeInt(scaled / 10L, out, start)
                 out[n++] = DOT
                 out[n++] = (scaled % 10L).toInt()
             }

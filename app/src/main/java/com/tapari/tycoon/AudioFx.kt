@@ -184,6 +184,11 @@ class AudioFx(private val ctx: Context, private val game: Game) : Fx {
                 Sfx.POUR -> 0.4f
                 Sfx.BELL -> 0.7f
                 Sfx.VIP -> 0.7f
+                Sfx.DASH -> 0.35f
+                Sfx.COMBO -> 0.3f
+                Sfx.GOLD -> 0.9f
+                Sfx.SPIN -> 0.06f
+                Sfx.ACHIEVE -> 1.0f
                 else -> 0.05f
             }
             val n = (dur * rate).toInt()
@@ -258,6 +263,33 @@ class AudioFx(private val ctx: Context, private val game: Game) : Fx {
                             if (tk >= 0.0) s += tw(notes[k], tk) * exp(-tk * 7.0) * 0.5
                         }
                         s += tw(3135.9, t) * 0.12 * exp(-t * 4.0)
+                    }
+                    Sfx.DASH -> {
+                        val x = noise(seed)
+                        lp += (0.05f + 0.35f * (t / d).toFloat()) * (x - lp)
+                        val env = Math.min(1.0, t * 30.0) * exp(-t * 6.5)
+                        s = (lp * 2.4 + sin(2.0 * PI * (260.0 + 900.0 * t) * t) * 0.12) * env
+                    }
+                    Sfx.COMBO -> {
+                        val ph = 2.0 * PI * (700.0 * t + 1500.0 * t * t)
+                        s = (sin(ph) * 0.5 + tw(2400.0, t) * 0.18) * Math.min(1.0, t * 90.0) * exp(-t * 11.0)
+                    }
+                    Sfx.GOLD -> {
+                        val notes = doubleArrayOf(1046.5, 1318.5, 1568.0, 2093.0, 2637.0, 3136.0)
+                        for (k in 0 until 6) {
+                            val tk = t - k * 0.06
+                            if (tk >= 0.0) s += (tw(notes[k], tk) * 0.45 + tw(notes[k] * 2.0, tk) * 0.12) * exp(-tk * 5.0) * 0.55
+                        }
+                    }
+                    Sfx.SPIN -> {
+                        s = (tw(1800.0, t) * 0.6 + noise(seed) * 0.2) * exp(-t * 70.0) * 0.7
+                    }
+                    Sfx.ACHIEVE -> {
+                        val notes = doubleArrayOf(523.25, 659.25, 783.99, 659.25, 783.99, 1046.5, 1318.5)
+                        for (k in 0 until 7) {
+                            val tk = t - k * 0.095
+                            if (tk >= 0.0) s += (tw(notes[k], tk) * 0.5 + tw(notes[k] * 2.0, tk) * 0.14) * exp(-tk * 4.2) * 0.55
+                        }
                     }
                     else -> {
                         s = tw(1100.0, t) * exp(-t * 90.0) * 0.6

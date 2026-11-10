@@ -104,7 +104,7 @@ class Game {
         const val MAXC = 28
         const val MAXS = 20
         const val MAXCARRY = 64
-        const val PMAX = 420
+        const val PMAX = 640
         const val QN = 6
 
         const val CS_TO_QUEUE = 1
@@ -123,6 +123,10 @@ class Game {
         const val P_SMOKE = 4
         const val P_NUM = 5
         const val P_JET = 6
+        const val P_LABEL = 7
+        const val P_RIPPLE = 8
+        const val P_CONF = 9
+        const val P_COMBO = 10
 
         const val F_START_PLAYER = 1
         const val F_END_PLAYER = 2
@@ -163,6 +167,22 @@ class Game {
         val STAFF_COL = intArrayOf(
             Col.rgb(0xF28C28), Col.rgb(0xD6382F), Col.rgb(0xE85A9B), Col.rgb(0x3A6FD8)
         )
+        const val SPIN_CD = 15L * 60L * 1000L
+        const val NACH = 13
+        val ACH_NAME = arrayOf(
+            "First Plate", "Momo Master", "Momo Legend", "Chiya Wala", "VIP Magnet", "Combo Starter", "Combo King",
+            "Lucky Finder", "Street Sprinter", "Lakhpati", "Empire Builder", "Franchise Reborn", "Spice Keeper"
+        )
+        val ACH_DESC = arrayOf(
+            "Serve your first plate of momo", "Serve 100 momo plates", "Serve 1000 momo plates", "Serve 50 cups of chiya",
+            "Serve 10 VIP guests", "Reach a x10 combo", "Reach a x25 combo", "Catch 5 Golden Momos", "Dash 50 times",
+            "Earn Rs 100K in total", "Own 3 franchise locations", "Rebirth your franchise", "Refill the jhol cauldron 30 times"
+        )
+        val ACH_TARGET = doubleArrayOf(1.0, 100.0, 1000.0, 50.0, 10.0, 10.0, 25.0, 5.0, 50.0, 100000.0, 3.0, 1.0, 30.0)
+        val ACH_GEMS = intArrayOf(1, 3, 8, 3, 4, 2, 6, 4, 3, 5, 6, 5, 3)
+        val PRIZE_NAME = arrayOf("Cash bag", "+2 gems", "Chiya Rush 60s", "Big cash", "Double cash 60s", "+5 gems", "Cash bag", "JACKPOT")
+        val PRIZE_W = intArrayOf(22, 18, 14, 10, 14, 4, 14, 4)
+        val STREAK_GEMS = intArrayOf(1, 1, 2, 2, 3, 4, 8)
         val CH_NAME = arrayOf(
             "Serve momo plates", "Serve chiya cups", "Welcome VIP guests",
             "Refill Jhol jars", "Earn cash"
@@ -204,6 +224,17 @@ class Game {
     val chReward = IntArray(3)
     var offlineEarn = 0.0
     var offlineSecs = 0L
+    var bestCombo = 0
+    var goldCount = 0
+    var dashCount = 0
+    var rebirths = 0
+    var jarsFilled = 0
+    var achClaimed = 0
+    var nextSpinAt = 0L
+    var streak = 0
+    var lastClaimDay = 0
+    var lastPrize = ""
+    var lastPrizeIdx = 0
 
     // ---- runtime ----
     @Volatile var inX = 0f
@@ -264,6 +295,22 @@ class Game {
     var rushCd = 70f
     var pickPulse = 0f
     var padDwellT = 0f
+    var combo = 0
+    var comboT = 0f
+    var dashT = 0f
+    var dashCdT = 0f
+    var dashK = 0f
+    var dustT = 0f
+    var goldOn = false
+    var goldX = 0f
+    var goldZ = 0f
+    var goldT = 0f
+    var goldCd = 40f
+    var dblT = 0f
+    private var achSeen = 0
+    private var achInit = false
+    private var lvlSeen = 1
+    private var achT = 0f
 
     // particles (struct of arrays, zero allocation)
     var pN = 0
@@ -331,6 +378,230 @@ class Game {
 
     fun upgCost(l: Int, id: Int): Double =
         UpDef.BASE[id] * UpDef.GROW[id].pow(upg[l][id].toDouble()) * Locs.MULT[l]
+
+    fun comboWindow(): Float = 9f + 1.5f * lvl(Up.COMBOWIN)
+    fun comboMult(): Double = 1.0 + min(combo, 25) * (0.04 + 0.01 * lvl(Up.COMBOWIN))
+    fun dashDur(): Float = 0.8f + 0.1f * lvl(Up.DASHCD)
+    fun dashCooldown(): Float = 5f - 0.6f * lvl(Up.DASHCD)
+
+    fun lvlT(n: Int): Double = if (n <= 1) 0.0 else 120.0 * 2.2.pow((n - 2).toDouble())
+    fun levelOf(life: Double): Int {
+        var n = 1
+        while (n < 60 && life >= lvlT(n + 1)) n++
+        return n
+    }
+
+    fun achVal(i: Int): Double = when (i) {
+        0, 1, 2 -> platesServed.toDouble()
+        3 -> chiyaServed.toDouble()
+        4 -> vipServed.toDouble()
+        5, 6 -> bestCombo.toDouble()
+        7 -> goldCount.toDouble()
+        8 -> dashCount.toDouble()
+        9 -> lifetime
+        10 -> Integer.bitCount(locMask).toDouble()
+        11 -> rebirths.toDouble()
+        else -> jarsFilled.toDouble()
+    }
+
+    fun achDone(i: Int): Boolean = achVal(i) >= ACH_TARGET[i]
+    fun achClaimedOf(i: Int): Boolean = ((achClaimed shr i) and 1) == 1
+
+    fun achReadyCount(): Int {
+        var n = 0
+        for (i in 0 until NACH) if (achDone(i) && !achClaimedOf(i)) n++
+        return n
+    }
+
+    fun claimAch(i: Int): Boolean {
+        synchronized(lock) {
+            if (!achDone(i) || achClaimedOf(i)) return false
+            achClaimed = achClaimed or (1 shl i)
+            gems += ACH_GEMS[i]
+            say("Achievement reward: +" + ACH_GEMS[i] + " gems")
+            sfx(Sfx.UNLOCK, 1.1f, 0.8f)
+            hap(Hap.SUCCESS)
+            return true
+        }
+    }
+
+    private fun checkAch() {
+        var m = 0
+        for (i in 0 until NACH) if (achDone(i)) m = m or (1 shl i)
+        val lv = levelOf(lifetime)
+        if (!achInit) {
+            achInit = true
+            achSeen = m
+            lvlSeen = lv
+            return
+        }
+        val fresh = m and achSeen.inv()
+        if (fresh != 0) {
+            for (i in 0 until NACH) {
+                if (((fresh shr i) and 1) == 1) {
+                    say("Achievement unlocked: " + ACH_NAME[i])
+                    sfx(Sfx.ACHIEVE, 1f, 0.9f)
+                    hap(Hap.SUCCESS)
+                    label(px, 2.6f, pz, Lbl.LUCKY)
+                    break
+                }
+            }
+            achSeen = achSeen or m
+        }
+        if (lv > lvlSeen) {
+            val g = lv - lvlSeen
+            lvlSeen = lv
+            gems += g
+            say("Level up! Boss level " + lv + "  +" + g + " gem")
+            label(px, 2.9f, pz, Lbl.LEVEL)
+            confetti(px, 1.5f, pz, 26)
+            sfx(Sfx.VIP, 1f, 0.9f)
+            hap(Hap.SUCCESS)
+        }
+    }
+
+    // ---- daily streak + lucky spin ----
+    fun today(): Int = (System.currentTimeMillis() / 86400000L).toInt()
+    fun streakReady(): Boolean = lastClaimDay != today()
+    fun streakDayIdx(): Int {
+        val next = if (lastClaimDay == today() - 1) streak + 1 else if (lastClaimDay == today()) streak else 1
+        return (max(1, next) - 1) % 7
+    }
+
+    fun streakCash(idx: Int): Double = max(incomeEma * 240.0, 400.0 * Locs.MULT[loc]) * (1.0 + 0.5 * idx)
+
+    fun claimStreak(): Boolean {
+        synchronized(lock) {
+            if (!streakReady()) return false
+            streak = if (lastClaimDay == today() - 1) streak + 1 else 1
+            lastClaimDay = today()
+            val idx = (streak - 1) % 7
+            val cash = streakCash(idx)
+            earn(cash)
+            gems += STREAK_GEMS[idx]
+            say("Day " + streak + " streak! Rs " + fmtMoney(cash) + " + " + STREAK_GEMS[idx] + " gems")
+            sfx(Sfx.ACHIEVE, 1f, 0.9f)
+            hap(Hap.SUCCESS)
+            return true
+        }
+    }
+
+    fun spinReady(): Boolean = System.currentTimeMillis() >= nextSpinAt
+    fun spinSecsLeft(): Long = max(0L, (nextSpinAt - System.currentTimeMillis()) / 1000L)
+
+    /** Rolls and grants a prize immediately; the UI just animates towards the returned segment. */
+    fun spinWheel(paid: Boolean): Int {
+        synchronized(lock) {
+            if (paid) {
+                if (gems < 2) return -1
+                gems -= 2
+            } else {
+                if (!spinReady()) return -1
+                nextSpinAt = System.currentTimeMillis() + SPIN_CD
+            }
+            var tot = 0
+            for (w in PRIZE_W) tot += w
+            var r = (rnd() * tot).toInt().coerceIn(0, tot - 1)
+            var idx = 0
+            for (k in PRIZE_W.indices) {
+                if (r < PRIZE_W[k]) { idx = k; break }
+                r -= PRIZE_W[k]
+            }
+            val unit = max(incomeEma * 120.0, 250.0 * Locs.MULT[loc]) * gemMult()
+            when (idx) {
+                0, 6 -> { earn(unit); lastPrize = "Rs " + fmtMoney(unit) }
+                1 -> { gems += 2; lastPrize = "+2 gems" }
+                2 -> { boostT = max(boostT, 60f); lastPrize = "Chiya Rush for 60s" }
+                3 -> { earn(unit * 3.0); lastPrize = "Rs " + fmtMoney(unit * 3.0) }
+                4 -> { dblT = max(dblT, 60f); lastPrize = "Double cash for 60s" }
+                5 -> { gems += 5; lastPrize = "+5 gems" }
+                else -> { earn(unit * 8.0); gems += 3; lastPrize = "Rs " + fmtMoney(unit * 8.0) + " + 3 gems" }
+            }
+            lastPrizeIdx = idx
+            sfx(Sfx.SPIN, 1f, 0.6f)
+            return idx
+        }
+    }
+
+    // ---- combo / dash / golden momo ----
+    fun endCombo(broken: Boolean) {
+        if (combo >= 5) say(if (broken) "Combo broken at x" + combo else "Combo ended at x" + combo)
+        combo = 0
+        comboT = 0f
+    }
+
+    fun dash(): Boolean {
+        synchronized(lock) {
+            if (paused || dashT > 0f || dashCdT > 0f) return false
+            dashT = dashDur()
+            dashCdT = dashCooldown() + dashDur()
+            dashCount++
+            sfx(Sfx.DASH, 1f, 0.7f)
+            hap(Hap.THUMP)
+            label(px, 2.6f, pz, Lbl.SPEED)
+            return true
+        }
+    }
+
+    private fun updateGold(dt: Float) {
+        if (goldOn) {
+            goldT -= dt
+            val dx = px - goldX
+            val dz = pz - goldZ
+            if (dx * dx + dz * dz < 1.7f * 1.7f) {
+                collectGold()
+            } else if (goldT <= 0f) {
+                goldOn = false
+                goldCd = 50f + rnd() * 40f
+            }
+            return
+        }
+        goldCd -= dt
+        if (goldCd <= 0f) {
+            var ok = false
+            for (t in 0 until 12) {
+                val x = -8.5f + rnd() * 20f
+                val z = -3.5f + rnd() * 12f
+                var clear = true
+                for (i in 0 until NST) {
+                    val s = st[i]
+                    if (!s.avail) continue
+                    val dx = x - s.x
+                    val dz = z - s.z
+                    val r = (if (s.unlocked) Layout.OB[i] else max(Layout.HX[i], Layout.HZ[i])) + 1.0f
+                    if (dx * dx + dz * dz < r * r) { clear = false; break }
+                }
+                if (clear && !(x > 9f && z > 4f && !owns())) { goldX = x; goldZ = z; ok = true; break }
+            }
+            if (ok) {
+                goldOn = true
+                goldT = 18f
+                say("A Golden Momo appeared! Run and grab it!")
+                sfx(Sfx.BELL, 1.3f, 0.8f)
+                ripple(goldX, goldZ, 3.5f, Col.rgb(0xFFD54A))
+                spawnP(P_SPARK, goldX, 1.2f, goldZ, 0f, 3f, 0f, 0.8f, 0.3f, Col.rgb(0xFFE066), 0.0)
+            } else {
+                goldCd = 5f
+            }
+        }
+    }
+
+    private fun collectGold() {
+        goldOn = false
+        goldCd = 55f + rnd() * 45f
+        goldCount++
+        val r = rnd()
+        val unit = max(incomeEma * 90.0, 150.0 * Locs.MULT[loc]) * gemMult()
+        if (r < 0.4f) { earn(unit); say("Golden Momo! Rs " + fmtMoney(unit)) }
+        else if (r < 0.65f) { gems += 1 + (rnd() * 2f).toInt(); say("Golden Momo! Gems!") }
+        else if (r < 0.85f) { boostT = max(boostT, 30f); say("Golden Momo! Chiya Rush 30s") }
+        else { dblT = max(dblT, 40f); say("Golden Momo! Double cash 40s") }
+        label(goldX, 2.4f, goldZ, Lbl.GOLD)
+        confetti(goldX, 1.2f, goldZ, 30)
+        ripple(goldX, goldZ, 4f, Col.rgb(0xFFD54A))
+        sfx(Sfx.GOLD, 1f, 1f)
+        hap(Hap.SUCCESS)
+    }
 
     fun earn(amount: Double) {
         money += amount
@@ -429,6 +700,11 @@ class Game {
         darkT = 0f
         rushCd = 70f + rnd() * 40f
         padDwellT = 0f
+        combo = 0
+        comboT = 0f
+        dashT = 0f
+        goldOn = false
+        goldCd = 35f
         px = 1f
         pz = -3.2f
         pvx = 0f
@@ -462,6 +738,7 @@ class Game {
             if (!canPrestige()) return false
             val g = prestigeGain()
             gems += g
+            rebirths++
             money = 0.0
             runEarned = 0.0
             for (l in 0 until Locs.COUNT) {
@@ -489,6 +766,8 @@ class Game {
             }
             incomeEma = 0.0
             platesServed = 0L; chiyaServed = 0L; vipServed = 0L; angryLeft = 0L
+            bestCombo = 0; goldCount = 0; dashCount = 0; rebirths = 0; jarsFilled = 0; achClaimed = 0
+            nextSpinAt = 0L; streak = 0; lastClaimDay = 0; achInit = false
             offlineEarn = 0.0; offlineSecs = 0L
             dayKey = 0
             ensureDay()
@@ -599,6 +878,17 @@ class Game {
             }
             if (buildT < 1f && owns()) buildT = min(1f, buildT + dt * 0.45f)
             if (boostT > 0f) boostT -= dt
+            if (dblT > 0f) dblT -= dt
+            if (dashT > 0f) dashT -= dt
+            if (dashCdT > 0f) dashCdT -= dt
+            dashK += ((if (dashT > 0f) 1f else 0f) - dashK) * min(1f, dt * 9f)
+            if (combo > 0) {
+                comboT -= dt
+                if (comboT <= 0f) endCombo(false)
+            }
+            updateGold(dt)
+            achT += dt
+            if (achT >= 1f) { achT = 0f; checkAch() }
             if (vlogT > 0f) vlogT -= dt
             alertPulse += dt * 7f
             if (yellCd > 0f) yellCd -= dt
@@ -651,13 +941,30 @@ class Game {
         // camera right = (cos, -sin), forward = (-sin, -cos)
         val dx = cy * ix + (-sy) * iy
         val dz = (-sy) * ix + (-cy) * iy
-        val mag = min(1f, sqrt(ix * ix + iy * iy))
-        val spd = playerSpeed() * mag
-        var len = sqrt(dx * dx + dz * dz)
+        var mag = min(1f, sqrt(ix * ix + iy * iy))
+        var ddx = dx
+        var ddz = dz
+        var spdMul = 1f
+        if (dashT > 0f) {
+            spdMul = 1.9f
+            if (mag < 0.25f) {
+                mag = 1f
+                ddx = kotlin.math.sin(heading)
+                ddz = kotlin.math.cos(heading)
+            }
+            dustT -= dt
+            if (dustT <= 0f) {
+                dustT = 0.035f
+                spawnP(P_SMOKE, px - kotlin.math.sin(heading) * 0.3f, 0.25f, pz - kotlin.math.cos(heading) * 0.3f,
+                    (rnd() - 0.5f) * 0.6f, 0.4f, (rnd() - 0.5f) * 0.6f, 0.5f, 0.26f, 0, 0.0)
+            }
+        }
+        val spd = playerSpeed() * mag * spdMul
+        var len = sqrt(ddx * ddx + ddz * ddz)
         if (len < 0.0001f) len = 1f
-        val tvx = dx / len * spd
-        val tvz = dz / len * spd
-        val a = min(1f, dt * 14f)
+        val tvx = ddx / len * spd
+        val tvz = ddz / len * spd
+        val a = min(1f, dt * (if (dashT > 0f) 24f else 14f))
         val oldVx = pvx
         val oldVz = pvz
         pvx += (tvx - pvx) * a
@@ -711,6 +1018,16 @@ class Game {
         return h + d * k
     }
 
+    private fun nearPile(k: Int): Boolean {
+        if (inZone(k, px, pz)) return true
+        val l = lvl(Up.MAGNET)
+        if (l <= 0) return false
+        val r = 1.6f + 0.6f * l
+        val dx = px - Layout.PX[k]
+        val dz = pz - Layout.PZ[k]
+        return dx * dx + dz * dz <= r * r
+    }
+
     private fun inZone(i: Int, x: Float, z: Float): Boolean {
         val dx = x - Layout.ZX[i]
         val dz = z - Layout.ZZ[i]
@@ -746,6 +1063,7 @@ class Game {
             SK.CAULDRON -> {
                 s.level = min(cauldronCap(), s.level + JAR_UNITS)
                 chAdd(CH_JARS, 1.0)
+                jarsFilled++
                 sfx(Sfx.POUR, 1f, 0.7f)
             }
             SK.TABLE, SK.BENCH -> s.stockA++
@@ -815,7 +1133,7 @@ class Game {
         // 2) cash
         for (k in 0 until NST) {
             val s = st[k]
-            if (!s.unlocked || s.bills <= 0 || !inZone(k, px, pz)) continue
+            if (!s.unlocked || s.bills <= 0 || !nearPile(k)) continue
             collectTick(s)
             interactT = 0.06f
             return
@@ -914,6 +1232,9 @@ class Game {
         padMask[loc] = padMask[loc] or (1 shl s.id)
         s.pop = 1f
         sparkBurst(s.x, 0.5f, s.z, 18, Col.rgb(0xFFD54A))
+        confetti(s.x, 0.8f, s.z, 24)
+        ripple(s.x, s.z, 4.5f, Col.rgb(0xFFE58A))
+        label(s.x, 2.4f, s.z, Lbl.UNLOCK)
         sfx(Sfx.UNLOCK, 1f, 1f)
         hap(Hap.SUCCESS)
         if (s.kind == SK.BUILDING) {
@@ -1193,6 +1514,7 @@ class Game {
         c.angry = true
         setBubble(c, Bub.ANGRY, 2.2f)
         angryLeft++
+        endCombo(true)
         sfx(Sfx.ANGRY, 1f, 0.9f)
         hap(Hap.BUZZ)
         shake = 0.25f
@@ -1232,7 +1554,26 @@ class Game {
             CT.TOURIST -> 4.0
             else -> 1.0
         }
-        val amt = base * mul * (1.0 + 0.25 * rnd()) * (if (darkT > 0f) 1.5 else 1.0)
+        val perfect = c.patience > c.patMax * 0.55f && c.jholAnger < 0.5f
+        combo++
+        comboT = comboWindow()
+        if (combo > bestCombo) bestCombo = combo
+        var amt = base * mul * (1.0 + 0.25 * rnd()) * (if (darkT > 0f) 1.5 else 1.0) * comboMult() * (if (dblT > 0f) 2.0 else 1.0)
+        if (perfect) {
+            amt *= 1.25
+            label(c.x, 2.9f, c.z, Lbl.PERFECT)
+        }
+        if (combo >= 3 && combo % 5 == 0) {
+            spawnP(P_COMBO, px, 2.6f, pz, 0f, 1.1f, 0f, 1.5f, 1f, Col.rgb(0xFFB02E), combo.toDouble())
+            sfx(Sfx.COMBO, 0.9f + min(combo, 30) * 0.02f, 0.8f)
+            hap(Hap.THUMP)
+            if (combo % 10 == 0) {
+                gems += 1
+                say("Combo x" + combo + "! +1 gem")
+            }
+        } else if (combo >= 2) {
+            sfx(Sfx.COMBO, 0.8f + min(combo, 30) * 0.02f, 0.35f)
+        }
         s.cashAmt += amt
         s.bills = min(90, s.bills + (if (c.type >= CT.VLOGGER) 4 else 2))
         setBubble(c, Bub.HAPPY, 1.6f)
@@ -1675,6 +2016,30 @@ class Game {
         pFlag[pN - 1] = flags
     }
 
+    fun label(x: Float, y: Float, z: Float, id: Int) {
+        spawnP(P_LABEL, x, y, z, 0f, 1.2f, 0f, 1.4f, 1f, Col.rgb(0xFFFFFF), id.toDouble())
+    }
+
+    fun ripple(x: Float, z: Float, size: Float, col: Int) {
+        spawnP(P_RIPPLE, x, 0.06f, z, 0f, 0f, 0f, 0.8f, size, col, 0.0)
+    }
+
+    fun confetti(x: Float, y: Float, z: Float, n: Int) {
+        for (i in 0 until n) {
+            val a = rnd() * 6.2832f
+            val sp = 1.5f + rnd() * 3.5f
+            val c = when ((rnd() * 6f).toInt()) {
+                0 -> Col.rgb(0xFF4D6D)
+                1 -> Col.rgb(0xFFD23F)
+                2 -> Col.rgb(0x3BCEAC)
+                3 -> Col.rgb(0x4D9DE0)
+                4 -> Col.rgb(0xFF9F1C)
+                else -> Col.rgb(0xB56CFF)
+            }
+            spawnP(P_CONF, x, y, z, kotlin.math.cos(a) * sp, 4f + rnd() * 4f, kotlin.math.sin(a) * sp, 1.4f + rnd() * 0.8f, 0.14f + rnd() * 0.1f, c, 0.0)
+        }
+    }
+
     fun sparkBurst(x: Float, y: Float, z: Float, n: Int, col: Int) {
         for (i in 0 until n) {
             spawnP(P_SPARK, x, y, z, (rnd() - 0.5f) * 4f, 2f + rnd() * 3f, (rnd() - 0.5f) * 4f, 0.7f + rnd() * 0.3f, 0.16f + rnd() * 0.1f, col, 0.0)
@@ -1712,6 +2077,19 @@ class Game {
                     if (pY[i] < 0.05f) { pY[i] = 0.05f; pVY[i] = 0f }
                 }
                 P_NUM -> pY[i] += pVY[i] * dt
+                P_LABEL, P_COMBO -> {
+                    pY[i] += pVY[i] * dt
+                    pVY[i] *= (1f - dt * 1.4f)
+                }
+                P_CONF -> {
+                    pVY[i] -= 7f * dt
+                    pX[i] += pVX[i] * dt
+                    pY[i] += pVY[i] * dt
+                    pZ[i] += pVZ[i] * dt
+                    pVX[i] *= (1f - dt * 0.8f)
+                    pVZ[i] *= (1f - dt * 0.8f)
+                    if (pY[i] < 0.05f) { pY[i] = 0.05f; pVY[i] = 0f; pVX[i] = 0f; pVZ[i] = 0f }
+                }
             }
             i++
         }
@@ -1809,7 +2187,24 @@ class Game {
             bldg = owns(), goal = goalTxt, goalFrac = goalF,
             rush = if (rushT > 0f) rushT.toInt() else 0,
             jholPct = (jf * 100f).toInt(),
-            dark = if (darkT > 0f) darkT.toInt() else 0
+            dark = if (darkT > 0f) darkT.toInt() else 0,
+            combo = combo,
+            comboFrac = if (combo > 0) (comboT / comboWindow()).coerceIn(0f, 1f) else 0f,
+            comboMult = comboMult().toFloat(),
+            dashCd = max(0f, dashCdT - dashDur()),
+            dashing = dashT > 0f,
+            dashReady = dashT <= 0f && dashCdT <= 0f,
+            gold = goldOn,
+            spinReady = spinReady(),
+            achReady = achReadyCount(),
+            streakReady = streakReady(),
+            dbl = if (dblT > 0f) dblT.toInt() else 0,
+            level = levelOf(lifetime),
+            levelFrac = run {
+                val lv = levelOf(lifetime)
+                ((lifetime - lvlT(lv)) / (lvlT(lv + 1) - lvlT(lv))).toFloat().coerceIn(0f, 1f)
+            },
+            bestCombo = bestCombo
         )
     }
 }
