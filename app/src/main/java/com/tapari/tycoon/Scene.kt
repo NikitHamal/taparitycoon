@@ -261,6 +261,8 @@ class Scene(private val g: Game) {
         val x = s.x
         val z = s.z
         shadow(x, z, 4.2f)
+        val fireA = (0.17f + 0.06f * sin(t * 17f)) * (if (g.darkT > 0f) 2.4f else 1f)
+        SG.quad(x, 0.042f, z + 1.4f, gRX, 0f, gRZ, gUX, 0f, gUZ, 2.7f, 2.2f, Atlas.SOFT, Col.tint(1f, 0.55f, 0.2f, fireA))
         L.loadId(); L.translate(x, 0f, z)
         L.box(0f, 0.5f, 0f, 2.9f, 1.0f, 2.5f, Col.rgb(0x3B3F46))
         L.box(0f, 0.3f, 1.26f, 1.8f, 0.3f, 0.06f, Col.emis(0xFF8A1F, 40 + (45f * (0.5f + 0.5f * sin(t * 17f))).toInt()))
@@ -356,6 +358,8 @@ class Scene(private val g: Game) {
         val x = s.x
         val z = s.z
         shadow(x, z, 3.0f)
+        val kA = (0.15f + 0.05f * sin(t * 13f + 1f)) * (if (g.darkT > 0f) 2.4f else 1f)
+        SG.quad(x, 0.042f, z + 0.9f, gRX, 0f, gRZ, gUX, 0f, gUZ, 2.2f, 1.9f, Atlas.SOFT, Col.tint(1f, 0.6f, 0.25f, kA))
         L.loadId(); L.translate(x, 0f, z)
         L.box(0f, 0.5f, 0f, 1.9f, 1.0f, 1.2f, Col.rgb(0x7A4B2A))
         L.box(0f, 1.02f, 0f, 2.0f, 0.06f, 1.3f, WOOD)
