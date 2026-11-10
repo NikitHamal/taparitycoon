@@ -311,6 +311,24 @@ class Game {
     var festT = 0f
     var plateSteamT = 0f
     var festFx = 0f
+    // monsoon (Barsaat) event
+    var rainT = 0f
+    var rainK = 0f
+    var thunderT = 6f
+    var thunderK = 0f
+    // stray dog (Kukur) mini-event
+    var dogOn = false
+    var dogX = 0f
+    var dogZ = 0f
+    var dogH = 0f
+    var dogState = 0
+    var dogT = 0f
+    var dogTgt = -1
+    var dogPlate = false
+    var dogRun = 0f
+    var dogExitX = 0f
+    var dogCd = 50f
+    var dogsShooed = 0
     private var achSeen = 0
     private var achInit = false
     private var lvlSeen = 1
@@ -371,6 +389,7 @@ class Game {
     fun lvl(id: Int): Int = upg[loc][id]
     fun owns(): Boolean = ((padMask[loc] shr Layout.ID_BUILDING) and 1) == 1
     fun playerSpeed(): Float = (5.0f + 0.32f * lvl(Up.SPEED)) * (if (boostT > 0f) 1.25f else 1f)
+    fun moktuTop(): Float = 1.52f + 0.5f * (2 + lvl(Up.MOKTU) / 4)
     fun carryCap(): Int = 6 + 2 * lvl(Up.CARRY)
     fun gemMult(): Double = 1.0 + 0.05 * gems
     fun platePrice(): Double = 30.0 * (1.0 + 0.2 * lvl(Up.PRICE)) * Locs.MULT[loc] * gemMult()
@@ -711,6 +730,10 @@ class Game {
         comboT = 0f
         dashT = 0f
         festT = 0f
+        rainT = 0f
+        rainK = 0f
+        dogOn = false
+        dogCd = 50f + rnd() * 30f
         goldOn = false
         goldCd = 35f
         px = 1f
@@ -913,10 +936,12 @@ class Game {
             if (pickPulse > 0f) pickPulse -= dt * 4f
             if (rushT > 0f) rushT -= dt
             if (darkT > 0f) darkT -= dt
+            updateWeather(dt)
+            updateDog(dt)
             rushCd -= dt
             if (rushCd <= 0f) {
                 rushCd = 80f + rnd() * 50f
-                if (seatsOpen() >= 4) { val ev = rnd(); if (ev < 0.28f) startBlackout() else if (ev < 0.62f) startRush() else startFestival() }
+                if (seatsOpen() >= 4) { val ev = rnd(); if (ev < 0.2f) startBlackout() else if (ev < 0.46f) startRush() else if (ev < 0.72f) startFestival() else startMonsoon() }
             }
             updatePlayer(dt)
             updatePads(dt)
@@ -1287,7 +1312,7 @@ class Game {
                 mok.raw--
                 mok.stockA++
                 mok.flash = 1f
-                for (n in 0 until 5) spawnP(P_STEAM, mok.x + (rnd() - 0.5f), 3.0f, mok.z + (rnd() - 0.5f), (rnd() - 0.5f) * 0.6f, 1.4f, (rnd() - 0.5f) * 0.6f, 1.2f, 0.7f, Col.rgb(0xFFFFFF), 0.0)
+                for (n in 0 until 5) spawnP(P_STEAM, mok.x + (rnd() - 0.5f), moktuTop() - 0.02f, mok.z + (rnd() - 0.5f), (rnd() - 0.5f) * 0.6f, 1.4f, (rnd() - 0.5f) * 0.6f, 1.2f, 0.7f, Col.rgb(0xFFFFFF), 0.0)
                 sfx(Sfx.STEAM, 1f + rnd() * 0.2f, 0.45f)
             }
         }
@@ -1305,7 +1330,7 @@ class Game {
         steamT -= dt
         if (steamT <= 0f) {
             steamT = if (mok.raw > 0) 0.09f else 0.42f
-            spawnP(P_STEAM, mok.x + (rnd() - 0.5f) * 1.2f, 3.1f, mok.z + (rnd() - 0.5f) * 1.2f,
+            spawnP(P_STEAM, mok.x + (rnd() - 0.5f) * 1.2f, moktuTop() + 0.08f, mok.z + (rnd() - 0.5f) * 1.2f,
                 (rnd() - 0.5f) * 0.5f, 1.1f + rnd() * 0.6f, (rnd() - 0.5f) * 0.5f, 1.8f, 0.55f, Col.rgb(0xFFFFFF), 0.0)
         }
         val ket = st[Layout.ID_KETTLE]
@@ -1574,7 +1599,7 @@ class Game {
     private fun payCustomer(c: Cust) {
         val s = st[c.seatSt]
         val student = c.type == CT.STUDENT
-        val base = if (student) chiyaPrice() else platePrice()
+        val base = if (student) chiyaPrice() * (if (rainT > 0f) 1.8 else 1.0) else platePrice()
         val mul = when (c.type) {
             CT.VLOGGER -> 5.0
             CT.BIKER -> 3.0
@@ -2143,6 +2168,116 @@ class Game {
         hap(Hap.SUCCESS)
     }
 
+    fun startMonsoon() {
+        rainT = 32f
+        thunderT = 3f
+        say("Barsaat! Everyone wants hot Chiya. Chiya x1.8 for 32s")
+        sfx(Sfx.STEAM, 0.5f, 0.9f)
+        hap(Hap.THUMP)
+    }
+
+    private fun updateWeather(dt: Float) {
+        if (rainT > 0f) {
+            rainT -= dt
+            thunderT -= dt
+            if (thunderT <= 0f) {
+                thunderT = 5f + rnd() * 6f
+                thunderK = 1f
+                shake = 0.25f
+                sfx(Sfx.STEAM, 0.5f, 1f)
+                sfx(Sfx.HORN, 0.5f, 0.35f)
+                hap(Hap.THUMP)
+            }
+        }
+        rainK += ((if (rainT > 0f) 1f else 0f) - rainK) * min(1f, dt * 1.4f)
+        if (thunderK > 0f) thunderK = max(0f, thunderK - dt * 2.6f)
+    }
+
+    private fun spawnDog(tgt: Int) {
+        dogOn = true
+        dogX = if (rnd() < 0.5f) Layout.MIN_X - 4f else Layout.MAX_X + 4f
+        dogZ = Layout.WALK_Z
+        dogExitX = dogX
+        dogTgt = tgt
+        dogState = 0
+        dogT = 0f
+        dogPlate = false
+        say("Kukur alert! A stray dog is sneaking after your plates - chase it off!")
+        sfx(Sfx.YELL, 0.6f, 0.8f)
+        hap(Hap.BUZZ)
+    }
+
+    private fun dogGo(tx: Float, tz: Float, spd: Float, dt: Float): Boolean {
+        val dx = tx - dogX
+        val dz = tz - dogZ
+        val d = sqrt(dx * dx + dz * dz)
+        if (d < 0.3f) return true
+        val step = min(d, spd * dt)
+        dogX += dx / d * step
+        dogZ += dz / d * step
+        dogH = lerpAngle(dogH, atan2(dx, dz), min(1f, dt * 12f))
+        dogRun += spd * dt * 1.7f
+        return false
+    }
+
+    private fun updateDog(dt: Float) {
+        if (!dogOn) {
+            dogCd -= dt
+            if (dogCd <= 0f) {
+                dogCd = 60f + rnd() * 50f
+                var best = -1
+                var bs = 0
+                for (i in Layout.ID_TABLE0 until Layout.ID_TABLE0 + 6) {
+                    val s = st[i]
+                    if (s.unlocked && s.stockA > bs) { bs = s.stockA; best = i }
+                }
+                if (best >= 0 && !jholAlert) spawnDog(best)
+            }
+            return
+        }
+        val ddx = px - dogX
+        val ddz = pz - dogZ
+        val near = if (dashT > 0f) 2.7f else 1.8f
+        if (dogState != 3 && ddx * ddx + ddz * ddz < near * near) {
+            val reward = platePrice() * (if (dogPlate) 4.0 else 2.0) * comboMult()
+            dogState = 3
+            dogsShooed++
+            earn(reward)
+            spawnP(P_NUM, dogX, 2.2f, dogZ, 0f, 1.2f, 0f, 1.4f, 1f, 0, reward)
+            sparkBurst(dogX, 1.2f, dogZ, 8, Col.rgb(0xFFE066))
+            confetti(dogX, 1.6f, dogZ, 8)
+            say(if (dogPlate) "Shoo! Plate rescued. Bonus cash!" else "Shoo Kukur! Bonus cash!")
+            sfx(Sfx.GOLD, 1.3f, 0.7f)
+            sfx(Sfx.YELL, 1.6f, 0.6f)
+            hap(Hap.SUCCESS)
+            dogPlate = false
+        }
+        when (dogState) {
+            0 -> {
+                val t = st[dogTgt]
+                if (dogGo(Layout.ZX[dogTgt], Layout.corZ(dogTgt), 4.6f, dt)) { dogState = 1; dogT = 0.9f }
+            }
+            1 -> {
+                dogT -= dt
+                if (dogT <= 0f) {
+                    val t = st[dogTgt]
+                    if (t.stockA > 0) {
+                        t.stockA--
+                        t.flash = 1f
+                        dogPlate = true
+                        say("Kukur stole a plate!")
+                        sfx(Sfx.ANGRY, 1.2f, 0.7f)
+                        hap(Hap.BUZZ)
+                    }
+                    dogState = 2
+                }
+            }
+            2 -> if (dogGo(dogExitX, Layout.WALK_Z + 2f, 6.8f, dt) && abs(dogX - dogExitX) < 1f) dogOn = false
+            else -> if (dogGo(dogExitX, Layout.WALK_Z + 2f, 10f, dt) && abs(dogX - dogExitX) < 1f) dogOn = false
+        }
+        if (dogOn && abs(dogX - dogExitX) < 0.6f && dogState >= 2 && abs(dogZ - (Layout.WALK_Z + 2f)) < 0.6f) dogOn = false
+    }
+
     fun startRush() {
         rushT = 25f
         spawnT = 0.3f
@@ -2233,6 +2368,8 @@ class Game {
             comboMult = comboMult().toFloat(),
             dashCd = max(0f, dashCdT),
             fest = if (festT > 0f) festT.toInt() else 0,
+            rain = if (rainT > 0f) rainT.toInt() else 0,
+            dog = dogOn,
             dashing = dashT > 0f,
             dashReady = dashT <= 0f && dashCdT <= 0f,
             gold = goldOn,

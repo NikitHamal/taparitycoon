@@ -74,9 +74,11 @@ class Scene(private val g: Game) {
         for (i in 0 until Game.NST) drawStation(i)
         drawCustomers()
         drawStaff()
+        drawDog()
         if (!g.paused) drawPlayer()
         drawGold()
         drawParticles()
+        drawRain()
         if (!g.paused) drawGuide()
         drawBubbles()
     }
@@ -264,15 +266,18 @@ class Scene(private val g: Game) {
         L.box(0f, 0.3f, 1.26f, 1.8f, 0.3f, 0.06f, Col.emis(0xFF8A1F, 40 + (45f * (0.5f + 0.5f * sin(t * 17f))).toInt()))
         L.box(0f, 0.97f, 1.55f, 2.2f, 0.08f, 0.8f, STEEL)
         val bounce = s.flash * 0.05f * sin(t * 40f)
-        for (k in 0 until 4) {
+        val tiers = 3 + g.lvl(Up.MOKTU) / 4
+        val topY = 1.25f + (tiers - 1) * 0.5f + 0.27f
+        for (k in 0 until tiers) {
             L.cyl(0f, 1.25f + k * 0.5f + bounce * k, 0f, 1.15f - k * 0.03f, 0.5f, if (k % 2 == 0) ALU else ALU2)
             L.box(1.2f, 1.25f + k * 0.5f, 0f, 0.14f, 0.1f, 0.3f, STEEL_D)
             L.box(-1.2f, 1.25f + k * 0.5f, 0f, 0.14f, 0.1f, 0.3f, STEEL_D)
+            if (g.lvl(Up.MOKTU) >= 6) L.cyl(0f, 1.25f + k * 0.5f + 0.2f, 0f, 1.17f - k * 0.03f, 0.04f, Col.rgb(0xE9B84A))
         }
         val rat = if (s.raw > 0) sin(t * 38f) * 0.03f else 0f
         val lift = abs(rat) * 1.6f
-        L.sph(rat, 3.02f + lift, 0f, 1.0f, 0.38f, 1.0f, Col.rgb(0xD8DEE3))
-        L.sph(rat, 3.4f + lift, 0f, 0.14f, 0.14f, 0.14f, DARK)
+        L.sph(rat, topY + lift, 0f, 1.0f, 0.38f, 1.0f, Col.rgb(0xD8DEE3))
+        L.sph(rat, topY + 0.38f + lift, 0f, 0.14f, 0.14f, 0.14f, if (g.lvl(Up.MOKTU) >= 6) Col.rgb(0xE9B84A) else DARK)
         // plates stacked on the front ledge
         val n = s.stockA
         for (k in 0 until n) {
@@ -433,6 +438,115 @@ class Scene(private val g: Game) {
             SB.quad(px, 1.55f + bob, pz, rX, rY, rZ, uX, uY, uZ, csz * 0.5f, csz * 0.5f, Atlas.COIN, WHITE)
             val tw = 0.5f + 0.5f * sin(t * 5f + i * 2f)
             SB.quad(px + 0.55f, 1.0f + 0.2f * tw, pz - 0.2f, rX, rY, rZ, uX, uY, uZ, 0.14f * tw + 0.05f, 0.14f * tw + 0.05f, Atlas.STAR, Col.tint(1f, 0.95f, 0.5f, tw))
+        }
+    }
+
+    // ------------------------------------------------------------------ stray dog (Kukur)
+    private val FUR = Col.rgb(0xC98E4B)
+    private val FUR_L = Col.rgb(0xE7C48E)
+    private val FUR_D = Col.rgb(0x8A5A2C)
+
+    private fun drawDog() {
+        if (!g.dogOn) return
+        val x = g.dogX
+        val z = g.dogZ
+        val st = g.dogState
+        val moving = st != 1
+        val run = g.dogRun
+        val bob = if (moving) abs(sin(run)) * 0.09f else 0.02f * sin(t * 6f)
+        shadow(x, z, 1.5f)
+        val rush = if (st == 3) 1.35f else 1f
+        L.loadId()
+        L.translate(x, 0f, z)
+        L.rotY(g.dogH)
+        L.rotX(if (moving) 0.04f * sin(run * 2f) else 0f)
+        // body
+        L.box(0f, 0.66f + bob, 0f, 0.46f, 0.4f, 0.98f, FUR)
+        L.box(0f, 0.8f + bob, -0.05f, 0.34f, 0.14f, 0.7f, FUR_D)
+        L.box(0f, 0.6f + bob, 0.28f, 0.48f, 0.3f, 0.3f, FUR_L)
+        // head
+        val nod = if (st == 1) 0.25f * sin(t * 18f) else 0f
+        L.push()
+        L.translate(0f, 0.9f + bob, 0.58f)
+        L.rotX(nod)
+        L.box(0f, 0f, 0.05f, 0.34f, 0.32f, 0.36f, FUR)
+        L.box(0f, -0.07f, 0.3f, 0.18f, 0.15f, 0.24f, FUR_L)
+        L.box(0f, -0.01f, 0.43f, 0.08f, 0.07f, 0.06f, DARK)
+        L.box(-0.09f, 0.07f, 0.24f, 0.05f, 0.05f, 0.03f, DARK)
+        L.box(0.09f, 0.07f, 0.24f, 0.05f, 0.05f, 0.03f, DARK)
+        val flop = 0.35f * sin(run * 2f) * rush
+        L.push()
+        L.translate(-0.17f, 0.14f, 0.0f)
+        L.rotZ(0.5f + flop)
+        L.box(0f, 0f, 0f, 0.1f, 0.22f, 0.12f, FUR_D)
+        L.pop()
+        L.push()
+        L.translate(0.17f, 0.14f, 0.0f)
+        L.rotZ(-0.5f - flop)
+        L.box(0f, 0f, 0f, 0.1f, 0.22f, 0.12f, FUR_D)
+        L.pop()
+        if (g.dogPlate) {
+            L.cyl(0f, -0.12f, 0.45f, 0.3f, 0.05f, WHITE)
+            L.sphLo(-0.08f, -0.07f, 0.45f, 0.09f, 0.07f, 0.09f, MOMO)
+            L.sphLo(0.09f, -0.07f, 0.47f, 0.09f, 0.07f, 0.09f, MOMO)
+        }
+        L.pop()
+        // wagging tail
+        L.push()
+        L.translate(0f, 0.8f + bob, -0.5f)
+        L.rotY(sin(t * 22f) * 0.7f)
+        L.rotX(-0.9f)
+        L.box(0f, 0.17f, 0f, 0.08f, 0.38f, 0.08f, FUR)
+        L.pop()
+        // four running legs
+        for (k in 0 until 4) {
+            val lx = if ((k and 1) == 0) -0.16f else 0.16f
+            val lz = if (k < 2) 0.34f else -0.34f
+            val ph = sin(run + (if (k == 0 || k == 3) 0f else 3.1416f)) * (if (moving) 0.85f else 0f)
+            L.push()
+            L.translate(lx, 0.48f + bob, lz)
+            L.rotX(ph)
+            L.box(0f, -0.22f, 0f, 0.1f, 0.46f, 0.1f, FUR_D)
+            L.box(0f, -0.45f, 0.04f, 0.12f, 0.06f, 0.18f, FUR_L)
+            L.pop()
+        }
+        L.loadId()
+        if (st != 3) {
+            val a = 1f + 0.12f * sin(t * 10f)
+            bIcon(SO, Atlas.I_EXCL, x, 2.0f, z, 0.8f * a, Col.tint(1f, 0.6f, 0.2f, 1f))
+            bIcon(SO, Atlas.I_ARROW, x, 3.0f + 0.25f * sin(t * 6f), z, 0.8f, Col.tint(1f, 0.55f, 0.2f, 1f))
+        }
+    }
+
+    // ------------------------------------------------------------------ monsoon rain
+    private fun fract(v: Float): Float = v - kotlin.math.floor(v)
+
+    private fun drawRain() {
+        val k = g.rainK
+        if (k < 0.03f) return
+        val n = (140f * k).toInt()
+        val cx = if (g.paused) 1.5f else g.px
+        val cz = if (g.paused) 1f else g.pz
+        for (i in 0 until n) {
+            val h1 = fract(sin(i * 12.9898f) * 43758.547f)
+            val h2 = fract(sin(i * 78.233f + 1.7f) * 12345.678f)
+            val h3 = fract(sin(i * 39.346f + 4.1f) * 24634.634f)
+            val x = cx + (h1 - 0.5f) * 36f
+            val z = cz + (h2 - 0.5f) * 30f
+            val fall = 14f + h3 * 6f
+            val y = 14f - ((t * fall + h3 * 14f) % 14f)
+            SB.quad(x, y, z, rX, 0f, rZ, 0f, 1f, 0f, 0.018f, 0.55f, Atlas.SOFT, Col.tint(0.82f, 0.9f, 1f, 0.32f * k))
+        }
+        val nr = (26f * k).toInt()
+        for (i in 0 until nr) {
+            val h1 = fract(sin(i * 21.71f + 3f) * 43758.547f)
+            val h2 = fract(sin(i * 54.31f + 9f) * 12345.678f)
+            val ph = fract(t * 1.4f + h1 * 3f)
+            val sz = 0.1f + 0.5f * ph
+            SG.quad(cx + (h1 - 0.5f) * 26f, 0.05f, cz + (h2 - 0.5f) * 22f, gRX, 0f, gRZ, gUX, 0f, gUZ, sz, sz, Atlas.RING, Col.tint(0.85f, 0.93f, 1f, 0.5f * (1f - ph) * k))
+        }
+        if (g.thunderK > 0.02f) {
+            SO.quad(cx, 5f, cz, rX, rY, rZ, uX, uY, uZ, 60f, 60f, Atlas.SOFT, Col.tint(0.85f, 0.9f, 1f, 0.22f * g.thunderK))
         }
     }
 

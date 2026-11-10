@@ -24,6 +24,13 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
     private var uSunCol = 0
     private var uSky = 0
     private var uGround = 0
+    private var uCam = 0
+    private var uFog = 0
+    private var prevDt = 0.016f
+    private var zoomK = 0f
+    private var camEx = 0f
+    private var camEy = 0f
+    private var camEz = 0f
     private var sVP = 0
     private var sTex = 0
 
@@ -66,6 +73,8 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         uSunCol = GLES30.glGetUniformLocation(litProg, "uSunCol")
         uSky = GLES30.glGetUniformLocation(litProg, "uSky")
         uGround = GLES30.glGetUniformLocation(litProg, "uGround")
+        uCam = GLES30.glGetUniformLocation(litProg, "uCam")
+        uFog = GLES30.glGetUniformLocation(litProg, "uFog")
         sprProg = Gl.program(Gl.SPR_VS, Gl.SPR_FS)
         sVP = GLES30.glGetUniformLocation(sprProg, "uVP")
         sTex = GLES30.glGetUniformLocation(sprProg, "uTex")
@@ -90,14 +99,19 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         var dt = if (last == 0L) 0.016f else (now - last) / 1_000_000_000f
         last = now
         if (dt > 0.05f) dt = 0.05f
+        // smooth out frame-time jitter so motion never micro-stutters
+        dt = prevDt + (dt - prevDt) * 0.55f
+        prevDt = dt
         game.update(dt)
 
         val loc = game.loc
-        val dimTarget = if (game.darkT > 0f) 0.5f else 1f
+        val dimTarget = (if (game.darkT > 0f) 0.5f else 1f) - 0.2f * game.rainK
         dim += (dimTarget - dim) * min(1f, dt * 2f)
+        val dimU = dim + 0.55f * game.thunderK
         val cc = Theme.CLEAR[loc]
-        val cd = 0.45f + 0.55f * dim
-        GLES30.glClearColor(cc[0] * cd, cc[1] * cd, cc[2] * cd, 1f)
+        val cd = 0.45f + 0.55f * dimU
+        val grey = 0.35f * game.rainK
+        GLES30.glClearColor((cc[0] + (0.6f - cc[0]) * grey) * cd, (cc[1] + (0.65f - cc[1]) * grey) * cd, (cc[2] + (0.72f - cc[2]) * grey) * cd, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
 
         // ---- camera ----
@@ -123,13 +137,15 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         }
         val ar = if (aspect < 0.3f) 0.3f else aspect
         val distScale = (0.5f / ar).coerceIn(0.8f, 1.3f)
-        val dist = (21.5f + 1.2f * game.dashK) * distScale * (1f - mb) + 38f * mb
+        zoomK += (game.moveAmt - zoomK) * min(1f, dt * 1.6f)
+        val dist = (21.5f + 1.2f * game.dashK + 1.0f * zoomK) * distScale * (1f - mb) + 38f * mb
         val fx = camX * (1f - mb) + 1.5f * mb
         val fz = camZ * (1f - mb) + 1.0f * mb
         val cp = cos(pitch)
         val ex = fx + sin(yaw) * cp * dist
         val ey = sin(pitch) * dist
         val ez = fz + cos(yaw) * cp * dist
+        camEx = ex; camEy = ey; camEz = ez
         Mat.perspective(proj, 36f + 4.5f * game.dashK, ar, 8f, 190f)
         Mat.lookAt(view, ex, ey, ez, fx + shx, 0f, fz + shz)
         Mat.mul(vp, proj, view)
@@ -150,9 +166,11 @@ class GameRenderer(private val game: Game) : GLSurfaceView.Renderer {
         val sr = sun[0] * (1f + 0.12f * w)
         val sgc = sun[1] * (1f - 0.1f * w)
         val sbc = sun[2] * (1f - 0.28f * w)
-        GLES30.glUniform3f(uSunCol, sr * dim, sgc * dim, sbc * dim)
-        GLES30.glUniform3f(uSky, sky[0] * (0.5f + 0.5f * dim) * (1f - 0.04f * w), sky[1] * (0.5f + 0.5f * dim), sky[2] * (0.55f + 0.45f * dim) * (1f + 0.05f * w))
-        GLES30.glUniform3f(uGround, gnd[0] * (0.5f + 0.5f * dim), gnd[1] * (0.5f + 0.5f * dim), gnd[2] * (0.55f + 0.45f * dim))
+        GLES30.glUniform3f(uSunCol, sr * dimU, sgc * dimU, sbc * dimU)
+        GLES30.glUniform3f(uSky, sky[0] * (0.5f + 0.5f * dimU) * (1f - 0.04f * w), sky[1] * (0.5f + 0.5f * dimU), sky[2] * (0.55f + 0.45f * dimU) * (1f + 0.05f * w))
+        GLES30.glUniform3f(uGround, gnd[0] * (0.5f + 0.5f * dimU), gnd[1] * (0.5f + 0.5f * dimU), gnd[2] * (0.55f + 0.45f * dimU))
+        GLES30.glUniform3f(uCam, camEx, camEy, camEz)
+        GLES30.glUniform4f(uFog, (cc[0] + (0.6f - cc[0]) * grey) * cd, (cc[1] + (0.65f - cc[1]) * grey) * cd, (cc[2] + (0.72f - cc[2]) * grey) * cd, 46f)
         lit.flush()
 
         // ---- sprite passes ----

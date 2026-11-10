@@ -355,7 +355,9 @@ data class Hud(
     val level: Int = 1,
     val levelFrac: Float = 0f,
     val bestCombo: Int = 0,
-    val fest: Int = 0
+    val fest: Int = 0,
+    val rain: Int = 0,
+    val dog: Boolean = false
 )
 
 /** Pop-up label ids (index into the atlas label table). */

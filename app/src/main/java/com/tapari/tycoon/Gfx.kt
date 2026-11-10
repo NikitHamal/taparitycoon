@@ -92,36 +92,62 @@ object Gl {
 
     const val LIT_VS = """#version 300 es
 uniform mat4 uVP;
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNrm;
+layout(location=2) in vec4 aCol;
+out vec3 vN;
+out vec3 vW;
+out vec4 vC;
+void main() {
+  vN = aNrm;
+  vW = aPos;
+  vC = aCol;
+  gl_Position = uVP * vec4(aPos, 1.0);
+}
+"""
+    const val LIT_FS = """#version 300 es
+precision highp float;
 uniform vec3 uSunDir;
 uniform vec3 uSunCol;
 uniform vec3 uSky;
 uniform vec3 uGround;
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aNrm;
-layout(location=2) in vec4 aCol;
-out vec3 vCol;
+uniform vec3 uCam;
+uniform vec4 uFog;
+in vec3 vN;
+in vec3 vW;
+in vec4 vC;
+out vec4 o;
 void main() {
-  vec3 n = normalize(aNrm);
+  vec3 n = normalize(vN);
   float nd = dot(n, uSunDir);
   float d = clamp(nd * 0.82 + 0.18, 0.0, 1.0);
   d = d * d * (3.0 - 2.0 * d);
   vec3 amb = mix(uGround, uSky, n.y * 0.5 + 0.5);
   float vert = 1.0 - clamp(n.y, 0.0, 1.0);
-  float ao = mix(1.0, mix(0.7, 1.0, smoothstep(0.0, 1.2, aPos.y)), vert);
+  float ao = mix(1.0, mix(0.7, 1.0, smoothstep(0.0, 1.2, vW.y)), vert);
   float rim = pow(1.0 - clamp(n.y * 0.5 + 0.5, 0.0, 1.0), 2.0) * 0.06;
-  vec3 lit = aCol.rgb * (amb + uSunCol * d) * ao + rim * uSunCol;
+  vec3 col = vC.rgb;
+  vec3 lit = col * (amb + uSunCol * d) * ao + rim * uSunCol;
+  vec3 toCam = uCam - vW;
+  float dist = length(toCam);
+  vec3 v = toCam / max(dist, 0.001);
+  vec3 h = normalize(uSunDir + v);
+  float luma = dot(col, vec3(0.299, 0.587, 0.114));
+  float mx = max(col.r, max(col.g, col.b));
+  float mn = min(col.r, min(col.g, col.b));
+  float sat = (mx - mn) / max(mx, 0.001);
+  float gloss = smoothstep(0.55, 0.85, luma) * (1.0 - smoothstep(0.04, 0.12, sat));
+  gloss *= smoothstep(0.08, 0.3, vW.y) * vC.a;
+  float spec = pow(max(dot(n, h), 0.0), 40.0) * gloss * 0.6;
+  lit += uSunCol * spec;
+  float fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
+  lit += uSky * fres * 0.05 * gloss;
   float l = dot(lit, vec3(0.299, 0.587, 0.114));
   lit = mix(vec3(l), lit, 1.14);
-  vCol = mix(aCol.rgb, lit, aCol.a);
-  gl_Position = uVP * vec4(aPos, 1.0);
-}
-"""
-    const val LIT_FS = """#version 300 es
-precision mediump float;
-in vec3 vCol;
-out vec4 o;
-void main() {
-  o = vec4(vCol, 1.0);
+  vec3 outc = mix(col, lit, vC.a);
+  float fog = smoothstep(uFog.a, uFog.a * 3.2, dist) * 0.82;
+  outc = mix(outc, uFog.rgb, fog);
+  o = vec4(outc, 1.0);
 }
 """
     const val SPR_VS = """#version 300 es

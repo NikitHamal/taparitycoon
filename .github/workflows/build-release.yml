@@ -43,25 +43,28 @@ jobs:
       - name: Verify committed keystore
         run: keytool -list -keystore keystore/tapari-release.p12 -storetype PKCS12 -storepass tapari123 -alias tapari
 
-      - name: Build signed release APK
-        run: gradle assembleRelease --stacktrace --no-daemon
+      - name: Build signed release + debug APKs
+        run: gradle assembleRelease assembleDebug --stacktrace --no-daemon
 
       - name: Collect APK
         run: |
           cp app/build/outputs/apk/release/app-release.apk TapariTycoon-release.apk
-          ls -la TapariTycoon-release.apk
+          cp app/build/outputs/apk/debug/app-debug.apk TapariTycoon-debug.apk
+          ls -la TapariTycoon-*.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: TapariTycoon-release
-          path: TapariTycoon-release.apk
+          path: |
+            TapariTycoon-release.apk
+            TapariTycoon-debug.apk
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest TapariTycoon-release.apk \
+          gh release create latest TapariTycoon-release.apk TapariTycoon-debug.apk \
             --target "${{ github.sha }}" --latest \
             --title "Momo & Chiya Empire - build ${{ github.run_number }}" \
             --notes "Automated build #${{ github.run_number }} from commit ${{ github.sha }}. Install TapariTycoon-release.apk on your Android phone. Every build is signed with the same committed keystore, so updates install over older builds."

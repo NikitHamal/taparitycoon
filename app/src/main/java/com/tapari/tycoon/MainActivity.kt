@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
         ctl.hide(WindowInsetsCompat.Type.systemBars())
         ctl.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
+        preferHighRefresh()
         game.paused = true
         Atlas.init(this)
         audio = AudioFx(this, game)
@@ -96,6 +97,23 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    /** Asks the display for its highest refresh rate (at the current resolution) for buttery 90/120 Hz motion. */
+    @Suppress("DEPRECATION")
+    private fun preferHighRefresh() {
+        try {
+            val d = windowManager.defaultDisplay
+            val cur = d.mode
+            var best = cur
+            for (m in d.supportedModes) {
+                if (m.physicalWidth == cur.physicalWidth && m.physicalHeight == cur.physicalHeight && m.refreshRate > best.refreshRate) best = m
+            }
+            val lp = window.attributes
+            lp.preferredDisplayModeId = best.modeId
+            window.attributes = lp
+        } catch (e: Throwable) {
         }
     }
 
