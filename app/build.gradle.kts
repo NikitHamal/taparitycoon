@@ -17,13 +17,11 @@ android {
 
     signingConfigs {
         create("release") {
-            val ks = System.getenv("KEYSTORE_PATH")
-            if (ks != null) {
-                storeFile = file(ks)
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")
-            }
+            storeFile = rootProject.file("keystore/tapari-release.p12")
+            storeType = "pkcs12"
+            storePassword = "tapari123"
+            keyAlias = "tapari"
+            keyPassword = "tapari123"
         }
     }
 
@@ -31,11 +29,7 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = if (System.getenv("KEYSTORE_PATH") != null)
-                signingConfigs.getByName("release") else signingConfigs.getByName("debug")
-        }
-        debug {
-            isDebuggable = true
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

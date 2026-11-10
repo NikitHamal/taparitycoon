@@ -1,8 +1,20 @@
 name: Build & Release APK
 
+# Runs only for pushes to main that touch the game, the build setup or this workflow.
+# Docs / status / README changes and pull requests never trigger a build.
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'keystore/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/build-release.yml'
   workflow_dispatch:
 
 permissions:
@@ -28,40 +40,28 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Generate release keystore
-        run: |
-          keytool -genkeypair -v -keystore "$RUNNER_TEMP/tapari-release.jks" \
-            -storepass tapari-ci-pass -keypass tapari-ci-pass -alias tapari \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Tapari Tycoon, OU=Games, O=Tapari, L=Kathmandu, C=NP"
+      - name: Verify committed keystore
+        run: keytool -list -keystore keystore/tapari-release.p12 -storetype PKCS12 -storepass tapari123 -alias tapari
 
-      - name: Build debug + signed release APKs
-        env:
-          KEYSTORE_PATH: ${{ runner.temp }}/tapari-release.jks
-          KEYSTORE_PASSWORD: tapari-ci-pass
-          KEY_ALIAS: tapari
-          KEY_PASSWORD: tapari-ci-pass
-        run: gradle assembleDebug assembleRelease --stacktrace --no-daemon
+      - name: Build signed release APK
+        run: gradle assembleRelease --stacktrace --no-daemon
 
-      - name: Collect APKs
+      - name: Collect APK
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk TapariTycoon-debug.apk
           cp app/build/outputs/apk/release/app-release.apk TapariTycoon-release.apk
-          ls -la *.apk
+          ls -la TapariTycoon-release.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: TapariTycoon-apks
-          path: |
-            TapariTycoon-debug.apk
-            TapariTycoon-release.apk
+          name: TapariTycoon-release
+          path: TapariTycoon-release.apk
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest TapariTycoon-debug.apk TapariTycoon-release.apk \
+          gh release create latest TapariTycoon-release.apk \
             --target "${{ github.sha }}" --latest \
             --title "Momo & Chiya Empire - build ${{ github.run_number }}" \
-            --notes "Automated build #${{ github.run_number }} from commit ${{ github.sha }}. Install TapariTycoon-release.apk on your Android phone."
+            --notes "Automated build #${{ github.run_number }} from commit ${{ github.sha }}. Install TapariTycoon-release.apk on your Android phone. Every build is signed with the same committed keystore, so updates install over older builds."
