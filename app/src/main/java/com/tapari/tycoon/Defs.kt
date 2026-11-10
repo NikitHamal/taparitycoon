@@ -131,7 +131,7 @@ object Col {
     }
 }
 
-/** Fixed shop layout shared by all franchise locations (big, roomy plot). */
+/** Fixed shop layout shared by all franchise locations (big, roomy plot with solid wall boundaries). */
 object Layout {
     const val N = 18
     const val ID_MAIDA = 0
@@ -146,16 +146,16 @@ object Layout {
     const val ID_BUILDING = 17
     const val INITIAL_MASK = 0x7F
 
-    // plot geometry shared by game + renderer
+    // plot geometry shared by game + renderer (strictly inside building walls and in front of back counter row)
     const val QZ = 12.4f          // queue line
     const val WALK_Z = 15.4f      // customers walk along this sidewalk line
     const val LANE_Z = -5.2f      // staff lane between kitchen row and floor
     const val DIV_Z = -4.7f
-    const val MIN_X = -11.6f
-    const val MAX_X = 14.8f
-    const val MIN_Z = -9.6f
-    const val MAX_Z = 12.8f
-    const val MAX_Z_THELA = 10.6f
+    const val MIN_X = -11.5f
+    const val MAX_X = 14.5f
+    const val MIN_Z = -6.7f       // keeps player in front of the z=-8 kitchen counter wall so they never go inside walls
+    const val MAX_Z = 12.6f
+    const val MAX_Z_THELA = 10.2f
 
     val KIND = intArrayOf(
         SK.MAIDA, SK.MEAT, SK.JHOL, SK.PREP, SK.MOKTU, SK.CAULDRON,
@@ -206,32 +206,32 @@ object Layout {
         for (i in 0 until N) {
             val x = X[i]
             val z = Z[i]
-            ZX[i] = x; ZZ[i] = z; ZR[i] = 1.55f
+            ZX[i] = x; ZZ[i] = z; ZR[i] = 1.65f
             PX[i] = x; PZ[i] = z
             WX[i] = ZX[i]; WZ[i] = ZZ[i]
             HX[i] = 1.5f; HZ[i] = 1.5f
             OB[i] = 1.2f
             when (KIND[i]) {
-                SK.MAIDA, SK.MEAT -> { ZZ[i] = z + 1.6f; ZR[i] = 1.25f; OB[i] = 1.25f }
-                SK.JHOL -> { ZZ[i] = z + 1.6f; ZR[i] = 1.25f; OB[i] = 1.2f }
-                SK.PREP -> { ZZ[i] = z + 1.6f; ZR[i] = 1.45f; OB[i] = 1.4f }
-                SK.MOKTU -> { ZZ[i] = z + 1.9f; ZR[i] = 1.5f; OB[i] = 1.6f; HX[i] = 1.8f; HZ[i] = 1.8f }
-                SK.CAULDRON -> { ZZ[i] = z; ZR[i] = 1.55f; OB[i] = 0.95f }
+                SK.MAIDA, SK.MEAT -> { ZZ[i] = z + 1.65f; ZR[i] = 1.45f; OB[i] = 1.3f }
+                SK.JHOL -> { ZZ[i] = z + 1.65f; ZR[i] = 1.45f; OB[i] = 1.25f }
+                SK.PREP -> { ZZ[i] = z + 1.65f; ZR[i] = 1.55f; OB[i] = 1.45f }
+                SK.MOKTU -> { ZZ[i] = z + 1.9f; ZR[i] = 1.65f; OB[i] = 1.65f; HX[i] = 1.8f; HZ[i] = 1.8f }
+                SK.CAULDRON -> { ZZ[i] = z; ZR[i] = 1.65f; OB[i] = 1.0f }
                 SK.TABLE -> {
-                    ZX[i] = x + 0.5f; ZZ[i] = z + 0.8f; ZR[i] = 2.2f
+                    ZX[i] = x + 0.5f; ZZ[i] = z + 0.8f; ZR[i] = 2.35f
                     PX[i] = x + 1.5f; PZ[i] = z - 0.55f
                     WX[i] = x + 1.75f; WZ[i] = z + 0.2f
-                    HX[i] = 1.7f; HZ[i] = 1.4f; OB[i] = 1.05f
+                    HX[i] = 1.7f; HZ[i] = 1.4f; OB[i] = 1.15f
                 }
                 SK.KETTLE -> {
-                    ZX[i] = x - 0.3f; ZZ[i] = z + 0.5f; ZR[i] = 1.5f; OB[i] = 1.0f
+                    ZX[i] = x - 0.3f; ZZ[i] = z + 0.5f; ZR[i] = 1.65f; OB[i] = 1.1f
                     PX[i] = x - 1.4f; PZ[i] = z
                 }
                 SK.BENCH -> {
-                    ZX[i] = x; ZZ[i] = z - 0.3f; ZR[i] = 2.0f
+                    ZX[i] = x; ZZ[i] = z - 0.3f; ZR[i] = 2.1f
                     PX[i] = x + 1.4f; PZ[i] = z - 0.3f
                     WX[i] = x; WZ[i] = z - 1.35f
-                    HX[i] = 1.6f; HZ[i] = 1.3f; OB[i] = 1.1f
+                    HX[i] = 1.6f; HZ[i] = 1.3f; OB[i] = 1.15f
                 }
                 SK.BUILDING -> {
                     HX[i] = 3.2f; HZ[i] = 2.6f; OB[i] = 0f; ZR[i] = 0f
@@ -255,9 +255,9 @@ object Layout {
     fun aisleFor(i: Int, sx: Float): Float {
         if (KIND[i] == SK.BENCH) return AISLE[2]
         var best = AISLE[0]
-        var bd = Math.abs(sx - best)
+        var bd = kotlin.math.abs(sx - best)
         for (k in 1 until 3) {
-            val d = Math.abs(sx - AISLE[k])
+            val d = kotlin.math.abs(sx - AISLE[k])
             if (d < bd) { bd = d; best = AISLE[k] }
         }
         return best
@@ -278,7 +278,6 @@ object Locs {
     )
     val MULT = doubleArrayOf(1.0, 8.0, 60.0, 500.0)
     val COST = doubleArrayOf(0.0, 15000.0, 250000.0, 5000000.0)
-    val EMOJI = arrayOf("\uD83D\uDED2", "\uD83C\uDFEA", "\uD83C\uDF06", "\uD83C\uDF0F")
 }
 
 /** Upgrade definitions. */
@@ -300,11 +299,6 @@ object UpDef {
         "Collects cash piles from tables for you.",
         "Students leave right after one cup. Free the benches!",
         "Campers keep buying Surya & samosas while they debate."
-    )
-    val EMOJI = arrayOf(
-        "\uD83D\uDC5F", "\uD83C\uDF92", "\uD83D\uDCB0", "\u2668\uFE0F", "\uD83C\uDF36\uFE0F",
-        "\uD83D\uDC68\u200D\uD83C\uDF73", "\uD83E\uDDC2", "\u2615", "\uD83D\uDCB5",
-        "\uD83D\uDEAB", "\uD83D\uDEAC"
     )
     val BASE = doubleArrayOf(60.0, 90.0, 120.0, 200.0, 150.0, 250.0, 300.0, 350.0, 400.0, 3000.0, 4500.0)
     val GROW = doubleArrayOf(1.55, 1.6, 1.7, 1.75, 1.7, 2.1, 2.1, 2.1, 2.1, 1.0, 1.0)
@@ -334,7 +328,9 @@ data class Hud(
     val goalFrac: Float = 0f,
     val rush: Int = 0,
     val jholPct: Int = 100,
-    val dark: Int = 0
+    val dark: Int = 0,
+    val combo: Int = 0,
+    val dashCd: Float = 0f
 )
 
 object Glyph {

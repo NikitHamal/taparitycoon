@@ -8,28 +8,28 @@ import kotlin.math.sin
 
 object Theme {
     val CLEAR = arrayOf(
-        floatArrayOf(0.56f, 0.79f, 0.96f), floatArrayOf(0.60f, 0.82f, 0.96f),
-        floatArrayOf(0.98f, 0.70f, 0.45f), floatArrayOf(0.08f, 0.06f, 0.20f)
+        floatArrayOf(0.54f, 0.78f, 0.96f), floatArrayOf(0.58f, 0.81f, 0.96f),
+        floatArrayOf(0.96f, 0.66f, 0.44f), floatArrayOf(0.07f, 0.06f, 0.18f)
     )
     val SUN = arrayOf(
-        floatArrayOf(0.86f, 0.78f, 0.62f), floatArrayOf(0.86f, 0.79f, 0.66f),
-        floatArrayOf(0.90f, 0.62f, 0.40f), floatArrayOf(0.50f, 0.52f, 0.90f)
+        floatArrayOf(0.90f, 0.81f, 0.65f), floatArrayOf(0.88f, 0.80f, 0.67f),
+        floatArrayOf(0.92f, 0.64f, 0.42f), floatArrayOf(0.52f, 0.55f, 0.92f)
     )
     val SKYAMB = arrayOf(
-        floatArrayOf(0.56f, 0.62f, 0.74f), floatArrayOf(0.58f, 0.63f, 0.74f),
-        floatArrayOf(0.68f, 0.54f, 0.58f), floatArrayOf(0.42f, 0.40f, 0.70f)
+        floatArrayOf(0.58f, 0.64f, 0.76f), floatArrayOf(0.60f, 0.65f, 0.76f),
+        floatArrayOf(0.70f, 0.55f, 0.60f), floatArrayOf(0.44f, 0.42f, 0.72f)
     )
     val GNDAMB = arrayOf(
-        floatArrayOf(0.44f, 0.40f, 0.36f), floatArrayOf(0.46f, 0.42f, 0.38f),
-        floatArrayOf(0.48f, 0.36f, 0.32f), floatArrayOf(0.30f, 0.24f, 0.40f)
+        floatArrayOf(0.45f, 0.41f, 0.37f), floatArrayOf(0.47f, 0.43f, 0.39f),
+        floatArrayOf(0.49f, 0.37f, 0.33f), floatArrayOf(0.32f, 0.26f, 0.42f)
     )
-    val FLOOR_A = intArrayOf(Col.rgb(0xE2DACB), Col.rgb(0xF0E8D6), Col.rgb(0xB8814F), Col.rgb(0x434A78))
-    val FLOOR_B = intArrayOf(Col.rgb(0xCFC6B4), Col.rgb(0xD6C8AC), Col.rgb(0xA26E41), Col.rgb(0x353B66))
-    val PAVE_A = Col.rgb(0xBDB8AE)
-    val PAVE_B = Col.rgb(0xAEA9A0)
-    val WALL = intArrayOf(Col.rgb(0xD9855A), Col.rgb(0xEBDDBC), Col.rgb(0x7B8FA3), Col.rgb(0x3A2F6E))
-    val ACCENT = intArrayOf(Col.rgb(0xF2B134), Col.rgb(0xCC3B2E), Col.rgb(0xF6E3A1), Col.rgb(0xFFC247))
-    val GROUND = intArrayOf(Col.rgb(0x7A7467), Col.rgb(0x77716A), Col.rgb(0x4A4F5C), Col.rgb(0x15122E))
+    val FLOOR_A = intArrayOf(Col.rgb(0xEDE4D3), Col.rgb(0xF3EBD9), Col.rgb(0xC28A58), Col.rgb(0x454D7C))
+    val FLOOR_B = intArrayOf(Col.rgb(0xDDD1BC), Col.rgb(0xDECFAF), Col.rgb(0xAA7446), Col.rgb(0x363D68))
+    val PAVE_A = Col.rgb(0xD2CCC0)
+    val PAVE_B = Col.rgb(0xC2BCB0)
+    val WALL = intArrayOf(Col.rgb(0xD97D54), Col.rgb(0xECDFBF), Col.rgb(0x788DA3), Col.rgb(0x382D6C))
+    val ACCENT = intArrayOf(Col.rgb(0xF4B43A), Col.rgb(0xCE3B2E), Col.rgb(0xF6E3A1), Col.rgb(0xFFC247))
+    val GROUND = intArrayOf(Col.rgb(0x787266), Col.rgb(0x756F68), Col.rgb(0x484D5A), Col.rgb(0x14112C))
     val BCOL = arrayOf(
         intArrayOf(Col.rgb(0xC9704A), Col.rgb(0xE0B05A), Col.rgb(0xB85C45), Col.rgb(0xD9C9A3), Col.rgb(0x8FA8B8), Col.rgb(0xC98F7A), Col.rgb(0xE8D2A0), Col.rgb(0xA7B38A)),
         intArrayOf(Col.rgb(0xB9B1A4), Col.rgb(0xC4856B), Col.rgb(0xD7C9A8), Col.rgb(0x9AA7B4), Col.rgb(0xCFA46E), Col.rgb(0x8F8A86), Col.rgb(0xBF7B66), Col.rgb(0xA9B7A0)),
@@ -55,6 +55,9 @@ class City(private val g: Game) {
     private val STEEL_D = Col.rgb(0x8A9199)
     private val RED = Col.rgb(0xD6382F)
     private val CONE = Col.rgb(0xF28C28)
+    private val LEAF = Col.rgb(0x3E9A4E)
+    private val LEAF_L = Col.rgb(0x58B868)
+    private val MARIGOLD = Col.rgb(0xFFA822)
 
     private fun rnd(i: Int, k: Int): Float {
         val x = sin(i * 12.9898f + k * 78.233f) * 43758.547f
@@ -68,19 +71,23 @@ class City(private val g: Game) {
         val loc = g.loc
         val e = ease(g.buildT.coerceIn(0f, 1f))
         L.loadId()
-        L.plane(1.5f, -0.05f, 0f, 400f, 400f, Theme.GROUND[loc])
+        L.plane(1.5f, -0.06f, 0f, 420f, 420f, Theme.GROUND[loc])
         drawFloor(loc, e)
-        if (loc == 2) drawRoofRail() else drawStreet(loc)
         drawSkyline(loc)
         drawBuilding(loc, e)
         drawNeighbors(loc)
         if (loc == 0 && e < 0.35f) drawThelaProps(e)
         drawFlags(loc, e)
+        if (loc == 2) drawRoofRail() else drawStreet(loc)
+        L.loadId()
     }
 
     // ---------------------------------------------------------------- floor
     private fun drawFloor(loc: Int, e: Float) {
+        L.loadId()
         val owned = e > 0.3f
+        // Sub-base grout slab so tiles have a crisp border
+        L.plane(1.0f, -0.015f, 2.0f, 29.2f, 24.4f, Col.rgb(0x8A8275))
         for (ix in 0 until 15) {
             for (iz in 0 until 12) {
                 val x = -13f + 2f * ix
@@ -90,61 +97,98 @@ class City(private val g: Game) {
                 if (owned) {
                     col = if (chk) Theme.FLOOR_A[loc] else Theme.FLOOR_B[loc]
                 } else if (x > 5.2f && z > 2.5f) {
-                    col = if (chk) Col.rgb(0xA79A82) else Col.rgb(0x9A8E77)
+                    col = if (chk) Col.rgb(0xB5A78E) else Col.rgb(0xA69880)
                 } else {
                     col = if (chk) Theme.PAVE_A else Theme.PAVE_B
                 }
-                L.plane(x, 0f, z, 2f, 2f, col)
+                L.plane(x, 0f, z, 1.94f, 1.94f, col)
             }
         }
-        // grout / border lines at the building edge
-        if (owned) {
-            L.box(1.5f, 0.02f, 14.1f, 28f, 0.05f, 0.3f, Theme.ACCENT[loc])
+        // Kitchen zone floor runner strip behind counter line
+        L.plane(1.0f, 0.008f, -8.0f, 26.5f, 3.2f, if (owned) shade(Theme.FLOOR_B[loc], 0.88f) else Col.rgb(0x9E9689))
+        L.box(1.0f, 0.02f, -6.35f, 26.8f, 0.035f, 0.14f, Theme.ACCENT[loc])
+
+        // Entrance welcome mat
+        L.box(-1.5f, 0.02f, 12.6f, 3.6f, 0.035f, 1.3f, RED)
+        L.box(-1.5f, 0.025f, 12.6f, 3.2f, 0.038f, 0.95f, Col.rgb(0xB8251E))
+        L.box(-1.5f, 0.028f, 12.6f, 2.8f, 0.04f, 0.1f, Theme.ACCENT[loc])
+
+        // Perimeter planters & boundary curbs so playable walls are visually unmistakable
+        if (!owned) {
+            // Low wooden boundary bollards on left & right edges of the footpath plot
+            for (k in 0 until 6) {
+                val bz = -6f + k * 3.4f
+                L.cyl(-12.5f, 0.35f, bz, 0.16f, 0.7f, WOOD_D)
+                L.sph(-12.5f, 0.72f, bz, 0.18f, 0.14f, 0.18f, Theme.ACCENT[loc])
+                L.cyl(15.5f, 0.35f, bz, 0.16f, 0.7f, WOOD_D)
+                L.sph(15.5f, 0.72f, bz, 0.18f, 0.14f, 0.18f, Theme.ACCENT[loc])
+            }
+        } else {
+            L.box(1.5f, 0.025f, 14.1f, 28.4f, 0.05f, 0.32f, Theme.ACCENT[loc])
+            // Decorative marigold planters at the front entrance corners
+            for (sd in intArrayOf(-1, 1)) {
+                val px = if (sd < 0) -11.6f else 14.6f
+                L.box(px, 0.32f, 13.3f, 0.9f, 0.64f, 0.9f, Col.rgb(0x8C5230))
+                L.box(px, 0.64f, 13.3f, 1.0f, 0.08f, 1.0f, WOOD_D)
+                L.sph(px, 0.92f, 13.3f, 0.48f, 0.42f, 0.48f, LEAF)
+                L.sph(px - 0.15f, 1.18f, 13.2f, 0.16f, 0.16f, 0.16f, MARIGOLD)
+                L.sph(px + 0.18f, 1.15f, 13.4f, 0.16f, 0.16f, 0.16f, MARIGOLD)
+            }
         }
     }
 
     // ---------------------------------------------------------------- building shell
     private fun drawBuilding(loc: Int, e: Float) {
+        L.loadId()
         val wall = Theme.WALL[loc]
         val acc = Theme.ACCENT[loc]
         val roof = loc == 2
-        val bh = if (roof) 1.5f else 5.6f
-        val sideH = if (roof) 1.3f else 4.2f
-        // the old closed-up facade behind everything
+        val bh = if (roof) 1.6f else 5.6f
+        val sideH = if (roof) 1.35f else 4.2f
+        // the old closed-up facade behind everything (strictly static at z = -11.5f)
         L.box(1.5f, bh / 2f, -11.5f, 32f, bh, 0.6f, Col.rgb(0xB4AEA2))
         if (e > 0.01f) {
             val h = bh * e
             L.box(1.5f, h / 2f, -10.9f, 29f, h, 0.5f, wall)
-            val th = min(h, if (roof) 0.9f else 1.7f)
-            L.box(1.5f, th / 2f, -10.6f, 29f, th, 0.06f, Col.rgb(0xF3F0E8))
-            L.box(1.5f, th + 0.04f, -10.58f, 29f, 0.08f, 0.1f, acc)
-            L.box(1.5f, h + 0.12f, -10.9f, 29.4f, 0.28f, 0.8f, acc)
+            val th = min(h, if (roof) 0.95f else 1.75f)
+            // Warm wainscoting /dado tiles along the back wall
+            L.box(1.5f, th / 2f, -10.6f, 29f, th, 0.06f, Col.rgb(0xF5F1E8))
+            L.box(1.5f, th + 0.04f, -10.58f, 29f, 0.09f, 0.12f, acc)
+            L.box(1.5f, h + 0.14f, -10.9f, 29.5f, 0.30f, 0.85f, acc)
+            // Architectural pilasters along the back wall
+            for (k in 0 until 6) {
+                val px = -12.5f + k * 5.6f
+                L.box(px, h / 2f, -10.62f, 0.38f, h, 0.18f, shade(wall, 0.86f))
+            }
             val sh = sideH * e
             L.box(-12.9f, sh / 2f, 1.8f, 0.6f, sh, 26f, wall)
             L.box(15.9f, sh / 2f, 1.8f, 0.6f, sh, 26f, wall)
-            L.box(-12.9f, sh + 0.1f, 1.8f, 0.8f, 0.22f, 26.2f, acc)
-            L.box(15.9f, sh + 0.1f, 1.8f, 0.8f, 0.22f, 26.2f, acc)
+            L.box(-12.9f, sh + 0.1f, 1.8f, 0.8f, 0.24f, 26.2f, acc)
+            L.box(15.9f, sh + 0.1f, 1.8f, 0.8f, 0.24f, 26.2f, acc)
             if (e > 0.95f && !roof) {
-                for (k in 0 until 5) {
-                    val wx = -8f + k * 6f
-                    L.box(wx, 3.0f, -10.55f, 2.4f, 1.5f, 0.08f, Col.emis(0x9AD7F5, 110))
-                    L.box(wx, 3.0f, -10.5f, 2.6f, 0.1f, 0.12f, WHITE)
-                    L.box(wx, 3.75f, -10.5f, 2.6f, 0.1f, 0.12f, WHITE)
-                    L.box(wx, 2.25f, -10.5f, 2.6f, 0.1f, 0.12f, WHITE)
-                    L.box(wx, 3.0f, -10.5f, 0.1f, 1.5f, 0.12f, WHITE)
+                for (k in 0 until 4) {
+                    val wx = -8.5f + k * 5.6f
+                    L.box(wx, 3.1f, -10.55f, 2.5f, 1.55f, 0.08f, Col.emis(0x9AD7F5, 110))
+                    L.box(wx, 3.1f, -10.5f, 2.7f, 0.1f, 0.12f, WHITE)
+                    L.box(wx, 3.85f, -10.5f, 2.7f, 0.1f, 0.12f, WHITE)
+                    L.box(wx, 2.35f, -10.5f, 2.7f, 0.1f, 0.12f, WHITE)
+                    L.box(wx, 3.1f, -10.5f, 0.1f, 1.55f, 0.12f, WHITE)
                 }
-                // tube lights
-                for (k in 0 until 6) L.box(-9f + k * 5.5f, 5.2f, -10.4f, 2.2f, 0.12f, 0.12f, Col.emis(0xFFF6D8, 20))
-                // menu board
-                L.box(11.2f, 2.9f, -10.5f, 3.2f, 1.9f, 0.1f, Col.rgb(0x20262E))
-                L.box(11.2f, 2.9f, -10.44f, 3.0f, 1.7f, 0.04f, Col.rgb(0x2F3A46))
-                SB.quad(10.4f, 3.2f, -10.36f, 1f, 0f, 0f, 0f, 1f, 0f, 0.42f, 0.42f, Atlas.I_PLATE, Col.tint(1f, 1f, 1f, 1f))
-                SB.quad(11.2f, 3.2f, -10.36f, 1f, 0f, 0f, 0f, 1f, 0f, 0.42f, 0.42f, Atlas.I_CUP, Col.tint(1f, 1f, 1f, 1f))
-                SB.quad(12.0f, 3.2f, -10.36f, 1f, 0f, 0f, 0f, 1f, 0f, 0.42f, 0.42f, Atlas.I_JHOL, Col.tint(1f, 1f, 1f, 1f))
-                for (k in 0 until 3) L.box(10.4f + k * 0.8f, 2.35f, -10.38f, 0.6f, 0.07f, 0.03f, Col.rgb(0xFFE9A8))
+                // Warm pendant lights
+                for (k in 0 until 6) {
+                    val lx = -9f + k * 5.2f
+                    L.box(lx, 5.25f, -10.4f, 2.2f, 0.12f, 0.12f, Col.emis(0xFFF6D8, 25))
+                }
+                // Menu board on the right back wall
+                L.box(11.4f, 3.0f, -10.5f, 3.6f, 2.0f, 0.1f, Col.rgb(0x1E242B))
+                L.box(11.4f, 3.0f, -10.44f, 3.35f, 1.78f, 0.04f, Col.rgb(0x2C3742))
+                SB.quad(10.4f, 3.3f, -10.36f, 1f, 0f, 0f, 0f, 1f, 0f, 0.45f, 0.45f, Atlas.I_PLATE, Col.tint(1f, 1f, 1f, 1f))
+                SB.quad(11.4f, 3.3f, -10.36f, 1f, 0f, 0f, 0f, 1f, 0f, 0.45f, 0.45f, Atlas.I_CUP, Col.tint(1f, 1f, 1f, 1f))
+                SB.quad(12.4f, 3.3f, -10.36f, 1f, 0f, 0f, 0f, 1f, 0f, 0.45f, 0.45f, Atlas.I_JHOL, Col.tint(1f, 1f, 1f, 1f))
+                for (k in 0 until 3) L.box(10.4f + k * 1.0f, 2.4f, -10.38f, 0.65f, 0.08f, 0.03f, Col.rgb(0xFFE9A8))
             }
         }
-        // closed shutter that rolls up when the shop is bought
+        // Closed shutter that rolls up when the shop is bought
         if (e < 0.999f) {
             val sh = 4.4f * (1f - e)
             if (sh > 0.05f) {
@@ -163,29 +207,30 @@ class City(private val g: Game) {
                 L.box(-4f, by - 0.18f, -10.22f, 3.0f, 0.22f, 0.04f, Col.rgb(0x39424C))
             }
         }
-        // shop signboard that drops in once built
+        // Shop signboard that drops in once built
         if (e > 0.4f && !roof) {
             val drop = if (e < 1f) (1f - e) * 3f else 0f
-            val sy = 5.0f + drop
-            L.box(1.5f, sy, -10.15f, 10.5f, 1.25f, 0.2f, Col.rgb(0x2A1A16))
-            L.box(1.5f, sy, -10.03f, 10.1f, 1.0f, 0.06f, acc)
-            L.box(1.5f, sy, -9.99f, 9.2f, 0.7f, 0.04f, Col.rgb(0x9E1B1B))
-            SB.quad(-2.4f, sy, -9.9f, 1f, 0f, 0f, 0f, 1f, 0f, 0.55f, 0.55f, Atlas.I_MOKTU, Col.tint(1f, 1f, 1f, 1f))
-            SB.quad(5.4f, sy, -9.9f, 1f, 0f, 0f, 0f, 1f, 0f, 0.55f, 0.55f, Atlas.I_CUP, Col.tint(1f, 1f, 1f, 1f))
-            for (k in 0 until 7) L.box(-1.2f + k * 0.4f + 0.2f, sy, -9.92f, 0.22f, 0.3f, 0.03f, Col.rgb(0xFFE9A8))
+            val sy = 5.05f + drop
+            L.box(1.5f, sy, -10.15f, 11.2f, 1.35f, 0.22f, Col.rgb(0x2A1A16))
+            L.box(1.5f, sy, -10.02f, 10.7f, 1.08f, 0.06f, acc)
+            L.box(1.5f, sy, -9.98f, 9.8f, 0.78f, 0.04f, Col.rgb(0x9E1B1B))
+            SB.quad(-2.6f, sy, -9.88f, 1f, 0f, 0f, 0f, 1f, 0f, 0.58f, 0.58f, Atlas.I_MOKTU, Col.tint(1f, 1f, 1f, 1f))
+            SB.quad(5.6f, sy, -9.88f, 1f, 0f, 0f, 0f, 1f, 0f, 0.58f, 0.58f, Atlas.I_CUP, Col.tint(1f, 1f, 1f, 1f))
+            for (k in 0 until 7) L.box(-1.3f + k * 0.44f + 0.2f, sy, -9.91f, 0.24f, 0.32f, 0.03f, Col.rgb(0xFFE9A8))
         }
         if (roof && e > 0.9f) {
             for (k in 0 until 5) {
                 val x = -10f + k * 6f
                 L.cyl(x, 0.5f, -9.6f, 0.55f, 1.0f, Col.rgb(0x5A4636))
-                L.sph(x, 1.35f, -9.6f, 0.55f, 0.5f, 0.55f, Col.rgb(0x3F9B4F))
-                L.sph(x + 0.2f, 1.7f, -9.5f, 0.35f, 0.35f, 0.35f, Col.rgb(0x58B368))
+                L.sph(x, 1.35f, -9.6f, 0.55f, 0.5f, 0.55f, LEAF)
+                L.sph(x + 0.2f, 1.7f, -9.5f, 0.35f, 0.35f, 0.35f, LEAF_L)
             }
         }
     }
 
     private fun drawFlags(loc: Int, e: Float) {
         if (loc == 3) return
+        L.loadId()
         val roof = loc == 2
         val y0 = if (roof) 3.3f else 6.2f
         val cols = intArrayOf(Col.rgb(0x2E6FD8), WHITE, Col.rgb(0xD6382F), Col.rgb(0x3FAF55), Col.rgb(0xF2C434))
@@ -200,7 +245,7 @@ class City(private val g: Game) {
     }
 
     private fun drawRoofRail() {
-        // glass railing + fairy lights along the rooftop edge, skyline is below
+        L.loadId()
         for (k in 0 until 24) {
             val x = -12f + k * 1.2f
             L.box(x, 0.55f, 14.0f, 0.1f, 1.1f, 0.1f, STEEL)
@@ -215,6 +260,7 @@ class City(private val g: Game) {
 
     // ---------------------------------------------------------------- street
     private fun drawStreet(loc: Int) {
+        L.loadId()
         val night = loc == 3
         // sidewalk, kerb, road
         L.plane(1.5f, 0f, 15.8f, 140f, 3.6f, if (night) Col.rgb(0x35335A) else Col.rgb(0xC4C0B6))
@@ -242,8 +288,8 @@ class City(private val g: Game) {
             val x = -29f + k * 10f
             if (x > -13.5f && x < 16.5f) continue
             L.cyl6(x, 0.55f, 16.6f, 0.14f, 1.1f, WOOD_D)
-            L.sphLo(x, 1.7f, 16.6f, 0.95f, 0.85f, 0.95f, Col.rgb(0x3F9B4F))
-            L.sphLo(x + 0.4f, 2.3f, 16.5f, 0.6f, 0.55f, 0.6f, Col.rgb(0x58B368))
+            L.sphLo(x, 1.7f, 16.6f, 0.95f, 0.85f, 0.95f, LEAF)
+            L.sphLo(x + 0.4f, 2.3f, 16.5f, 0.6f, 0.55f, 0.6f, LEAF_L)
         }
         for (k in 0 until 5) {
             val x = -38f + k * 20f
@@ -254,11 +300,12 @@ class City(private val g: Game) {
             L.box(x + 10f, 8.22f, 17.4f, 20f, 0.03f, 0.03f, Col.rgb(0x222222))
             L.box(x + 5f, 8.05f, 17.4f, 0.5f, 0.35f, 0.1f, Col.rgb(0x333333))
         }
-        // dustbin + bench on the sidewalk
+        // dustbin on the sidewalk
         L.cyl(16.9f, 0.45f, 15.2f, 0.32f, 0.9f, Col.rgb(0x3D8B4D))
         L.cyl(16.9f, 0.92f, 15.2f, 0.34f, 0.08f, Col.rgb(0x2C6A3A))
         drawTraffic(night)
         drawPeds()
+        L.loadId()
     }
 
     private val VZ = floatArrayOf(19.6f, 19.6f, 19.6f, 24.6f, 24.6f, 24.6f, 20.2f, 24.0f)
@@ -276,13 +323,12 @@ class City(private val g: Game) {
             val raw = t * VS[i] * VD[i] + VO[i]
             val m = raw + 60f
             val x = m - floor(m / 120f) * 120f - 60f
-            if (abs(x - g.px) > 22f) continue
+            if (abs(x - g.px) > 24f) continue
             L.loadId()
             L.translate(x, 0f, VZ[i])
             if (VD[i] < 0f) L.rotY(3.1416f)
             val col = VC[i]
             val head = if (night) Col.emis(0xFFF2B0, 20) else Col.rgb(0xFFF2B0)
-            L.box(0f, 0.04f, 0f, 0.1f, 0.01f, 0.1f, col)
             when (VT[i]) {
                 0 -> {
                     L.box(0f, 1.3f, 0f, 6.6f, 2.0f, 2.3f, col)
@@ -323,6 +369,7 @@ class City(private val g: Game) {
                 }
             }
         }
+        L.loadId()
     }
 
     private val PS = floatArrayOf(1.1f, -0.9f, 1.4f, -1.2f, 0.8f)
@@ -358,10 +405,12 @@ class City(private val g: Game) {
             rig.lookX = 0f
             rig.person(x, 0f, PZ[i])
         }
+        L.loadId()
     }
 
     // ---------------------------------------------------------------- skyline
     private fun drawSkyline(loc: Int) {
+        L.loadId()
         val pal = Theme.BCOL[loc]
         val night = loc == 3
         val dusk = loc == 2
@@ -395,7 +444,6 @@ class City(private val g: Game) {
             }
         }
         if (loc == 2) {
-            // below-the-roof city blocks all around the front
             for (k in 0 until 16) {
                 val x = -46f + k * 6.4f + rnd(k, 8) * 2f
                 val z = 22f + rnd(k, 9) * 14f
@@ -447,12 +495,13 @@ class City(private val g: Game) {
 
     // ---------------------------------------------------------------- neighbours
     private fun drawNeighbors(loc: Int) {
+        L.loadId()
         val pal = Theme.BCOL[loc]
         val night = loc == 3
         for (side in 0 until 2) {
             for (k in 0 until 3) {
                 val w = 8f + rnd(k, side + 20) * 3f
-                val xc = if (side == 0) -13.4f - w / 2f - k * (w + 0.3f) else 16.4f + w / 2f + k * (w + 0.3f)
+                val xc = if (side == 0) -13.6f - w / 2f - k * (w + 0.3f) else 16.6f + w / 2f + k * (w + 0.3f)
                 val h = 7f + rnd(k, side + 30) * 5f
                 val col = pal[(k * 2 + side * 3 + 1) % 8]
                 val depth = 24f
@@ -500,28 +549,29 @@ class City(private val g: Game) {
             L.box(0f, 0f, 0f, 1.4f, 0.08f, 2.4f, if (k % 2 == 0) RED else WHITE)
             L.pop()
         }
-        // hanging bulbs
+        // hanging warm festoon bulbs
         for (k in 0 until 20) {
             val x = -11f + k * 1.3f
             val on = if (((t * 2f).toInt() + k) % 6 == 0) 0.5f else 1f
             L.sphLo(x, 3.05f - 0.14f * sin(k * 1.1f) + rise, -9.4f, 0.1f, 0.1f, 0.1f, Col.emis(0xFFE08A, (40 * on).toInt()))
         }
         L.box(1.5f, 3.2f + rise, -9.4f, 26f, 0.02f, 0.02f, Col.rgb(0x333333))
-        // gas cylinder, water drum, sacks
+        // gas cylinder, water drum, sacks tucked safely behind the counter line
         L.cyl(6.4f, 0.55f, -9.6f, 0.3f, 1.1f, RED)
         L.cyl(6.4f, 1.15f, -9.6f, 0.12f, 0.15f, STEEL_D)
         L.cyl(-11.2f, 0.6f, -9.5f, 0.5f, 1.2f, Col.rgb(0x2E6FB7))
         L.cyl(-11.2f, 1.22f, -9.5f, 0.52f, 0.06f, Col.rgb(0x1F4F8A))
         for (k in 0 until 3) L.box(11.9f + (k % 2) * 0.9f, 0.3f + (k / 2) * 0.6f, -9.7f, 0.85f, 0.55f, 0.6f, Col.rgb(0xD8C9A0))
-        // FOR SALE board and cones on the empty lot
-        L.box(7.4f, 1.1f, 3.3f, 0.12f, 2.2f, 0.12f, WOOD_D)
-        L.box(12.2f, 1.1f, 3.3f, 0.12f, 2.2f, 0.12f, WOOD_D)
-        L.box(9.8f, 1.9f, 3.3f, 5.4f, 1.5f, 0.14f, Col.rgb(0xF4F0E4))
-        L.box(9.8f, 2.35f, 3.38f, 5.0f, 0.35f, 0.04f, RED)
-        SB.quad(9.8f, 1.7f, 3.46f, 1f, 0f, 0f, 0f, 1f, 0f, 0.62f, 0.62f, Atlas.I_BUILD, Col.tint(1f, 1f, 1f, 1f))
+        // FOR SALE board placed behind the building unlock pad (z = 10.6f) so player never clips through it
+        L.box(7.8f, 1.1f, 10.6f, 0.12f, 2.2f, 0.12f, WOOD_D)
+        L.box(11.8f, 1.1f, 10.6f, 0.12f, 2.2f, 0.12f, WOOD_D)
+        L.box(9.8f, 1.9f, 10.6f, 4.8f, 1.45f, 0.14f, Col.rgb(0xF4F0E4))
+        L.box(9.8f, 2.32f, 10.52f, 4.4f, 0.34f, 0.04f, RED)
+        SB.quad(9.8f, 1.7f, 10.44f, 1f, 0f, 0f, 0f, 1f, 0f, 0.62f, 0.62f, Atlas.I_BUILD, Col.tint(1f, 1f, 1f, 1f))
+        // Cones neatly framing the building pad corners
         for (k in 0 until 4) {
-            val cx = if (k % 2 == 0) 6.0f else 13.6f
-            val cz = if (k < 2) 3.9f else 10.0f
+            val cx = if (k % 2 == 0) 6.2f else 13.4f
+            val cz = if (k < 2) 3.8f else 9.8f
             L.cone(cx, 0.4f, cz, 0.3f, 0.8f, CONE)
             L.cyl(cx, 0.42f, cz, 0.22f, 0.1f, WHITE)
             L.box(cx, 0.03f, cz, 0.6f, 0.06f, 0.6f, CONE)

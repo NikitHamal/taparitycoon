@@ -98,21 +98,23 @@ class Rig {
     private val DARK = Col.rgb(0x2A2D34)
     private val GLOWSCR = Col.emis(0x7AE0FF, 70)
     private val RINGLIGHT = Col.emis(0xFFF6D8, 20)
+    private val TRAY_WOOD = Col.rgb(0x8C5832)
 
     fun person(x: Float, y0: Float, z: Float) {
         val b = L
         val sp = sin(phase)
+        val cp = cos(phase)
         val mvv = mv
         val idle = 1f - mvv
-        val bob = if (seated) 0f else abs(sp) * 0.075f * mvv
+        val bob = if (seated) 0f else abs(sp) * 0.085f * mvv
         val dy = if (seated) -0.40f else 0f
-        val br = sin(t * 2.3f + seed) * 0.012f * idle
+        val br = sin(t * 2.5f + seed) * 0.015f * idle
         var hopY = hop
         var shake = 0f
-        if (arm == Pose.CHEER) hopY += abs(sin(t * 9f + seed)) * 0.16f
+        if (arm == Pose.CHEER) hopY += abs(sin(t * 10f + seed)) * 0.18f
         if (arm == Pose.ANGRY) {
-            hopY += abs(sin(t * 16f)) * 0.05f
-            shake = sin(t * 30f) * 0.05f
+            hopY += abs(sin(t * 16f)) * 0.06f
+            shake = sin(t * 30f) * 0.055f
         }
         b.loadId()
         b.translate(x, y0 + bob + dy + hopY, z)
@@ -133,32 +135,32 @@ class Rig {
                 thigh = -1.5f + s * 0.05f
                 knee = 1.5f
             } else {
-                thigh = -sin(ph) * 0.74f * mvv + s * 0.03f * idle
-                knee = mvv * (0.12f + 0.9f * max(0f, cos(ph)))
+                thigh = -sin(ph) * 0.78f * mvv + s * 0.03f * idle
+                knee = mvv * (0.14f + 0.92f * max(0f, cos(ph)))
             }
             b.push()
             b.translate(s * 0.13f, hip, 0f)
             b.rotX(thigh)
-            b.box(0f, -0.21f, 0f, 0.17f, 0.44f, 0.19f, pants)
+            b.box(0f, -0.21f, 0f, 0.175f, 0.44f, 0.195f, pants)
             b.translate(0f, -0.42f, 0f)
             b.rotX(knee)
-            b.box(0f, -0.2f, 0f, 0.15f, 0.42f, 0.17f, pants)
-            b.box(0f, -0.41f, 0.05f, 0.17f, 0.1f, 0.3f, shoe)
-            b.box(0f, -0.455f, 0.05f, 0.18f, 0.03f, 0.31f, shade(shoe, 1.8f))
+            b.box(0f, -0.2f, 0f, 0.155f, 0.42f, 0.175f, pants)
+            b.box(0f, -0.41f, 0.05f, 0.175f, 0.1f, 0.31f, shoe)
+            b.box(0f, -0.455f, 0.05f, 0.185f, 0.035f, 0.32f, shade(shoe, 1.8f))
             b.pop()
         }
 
         // ---- torso ----
         b.push()
         b.translate(0f, hip + 0.02f, 0f)
-        var lean = mvv * 0.13f
-        if (arm == Pose.WORK) lean += 0.16f
-        if (arm == Pose.EAT) lean += 0.1f
+        var lean = mvv * 0.14f
+        if (arm == Pose.WORK) lean += 0.17f
+        if (arm == Pose.EAT) lean += 0.11f + 0.04f * sin(t * 7f + seed)
         if (arm == Pose.ANGRY) lean += 0.12f
         if (seated) lean += 0.05f
         b.rotX(lean)
-        b.rotY(sp * 0.2f * mvv)
-        b.rotZ(sp * 0.035f * mvv + shake)
+        b.rotY(sp * 0.21f * mvv)
+        b.rotZ(cp * 0.04f * mvv + shake)
         b.box(0f, 0.04f, 0f, 0.46f, 0.2f, 0.28f, pants)
         b.box(0f, 0.36f + br, 0f, 0.54f, 0.6f, 0.31f, shirt)
         b.box(0f, 0.34f, 0f, 0.5f, 0.12f, 0.33f, shade(shirt, 0.92f))
@@ -202,14 +204,22 @@ class Rig {
             b.box(-0.2f, 0.42f, -0.18f, 0.12f, 0.4f, 0.03f, accent)
         }
 
+        // ---- wooden carry tray when holding items ----
+        if (arm == Pose.CARRY) {
+            b.box(0f, 0.12f, 0.56f, 0.66f, 0.045f, 0.48f, TRAY_WOOD)
+            b.box(0f, 0.15f, 0.78f, 0.66f, 0.06f, 0.04f, shade(TRAY_WOOD, 0.8f))
+            b.box(-0.31f, 0.15f, 0.56f, 0.04f, 0.06f, 0.48f, shade(TRAY_WOOD, 0.8f))
+            b.box(0.31f, 0.15f, 0.56f, 0.04f, 0.06f, 0.48f, shade(TRAY_WOOD, 0.8f))
+        }
+
         // ---- head ----
         b.push()
         b.translate(0f, 0.98f + br, 0f)
         val lookYaw = sin(t * 0.8f + seed) * 0.4f * idle + lookX
-        val nod = sin(phase * 2f) * 0.045f * mvv + (if (arm == Pose.EAT) sin(t * 7f + seed) * 0.05f else 0f)
+        val nod = sin(phase * 2f) * 0.045f * mvv + (if (arm == Pose.EAT) sin(t * 7f + seed) * 0.06f else 0f)
         b.rotY(lookYaw)
         b.rotX(nod)
-        if (arm == Pose.ANGRY) b.rotZ(sin(t * 26f) * 0.06f)
+        if (arm == Pose.ANGRY || arm == Pose.YELL) b.rotZ(sin(t * 24f) * 0.06f)
         drawHead(b)
         b.pop()
 
@@ -221,7 +231,7 @@ class Rig {
             var splay = 0.07f
             val right = s > 0f
             when (arm) {
-                Pose.CARRY -> { sh = -1.15f; el = -0.45f; splay = 0.0f }
+                Pose.CARRY -> { sh = -1.15f; el = -0.45f; splay = 0.02f }
                 Pose.EAT -> {
                     if (right) { sh = -0.95f; el = -1.2f - 0.7f * (0.5f + 0.5f * sin(t * 7f + seed)) }
                     else { sh = -0.7f; el = -0.5f }
@@ -240,7 +250,7 @@ class Rig {
                 }
                 Pose.YELL -> {
                     if (right) { sh = -2.7f + 0.3f * sin(t * 14f); el = -0.2f; splay = 0.25f }
-                    else { sh = 0.2f; el = -1.0f; splay = 0.5f }
+                    else { sh = -1.8f + 0.25f * cos(t * 14f); el = -0.5f; splay = 0.3f }
                 }
                 else -> {
                     sh = -s * sp * 0.85f * mvv + sin(t * 1.7f + seed + s) * 0.04f * idle
@@ -277,6 +287,8 @@ class Rig {
             b.pop()
         }
         b.pop()
+        // Always reset matrix after drawing a character so callers never inherit transforms!
+        b.loadId()
     }
 
     private fun drawHead(b: LitBatch) {
