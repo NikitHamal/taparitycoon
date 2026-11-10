@@ -454,7 +454,7 @@ class Scene(private val g: Game) {
                 r.acc = Acc.PACK or Acc.CAMERA
                 r.accent = Col.rgb(0x2FB5A8)
                 r.skin = TSKIN[c.look and 3]
-                r.hairStyle = if (c.look > 3) HairS.SWOOP else HairS.BUN
+                r.hairStyle = if (c.look > 3) HairS.SWOOP else HairS.SHORT
                 r.hair = if (c.look > 3) Col.rgb(0xC98F3A) else Col.rgb(0x7A4A22)
             }
             else -> when (c.look) {

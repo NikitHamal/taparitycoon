@@ -24,12 +24,15 @@ Rule: never run Gradle locally. CI (GitHub Actions) builds ONE signed release AP
 
 ## Verified
 - Run for 1cc4bd3 (CI-only change): green, signed release APK published with the committed keystore.
-- (see CI log below for later runs)
+- Run for 060bc24 (full overhaul) and 6ce4a6a (polish): green. Release APK signature verified to contain the committed keystore certificate (SHA-256 D1:98:0D:0A:...:AD:FC).
+- Rig geometry was software-rendered offline (Python port) to sanity-check orientation, hats, faces, poses.
 
 ## CI log
 - Run 1 (bb71d20): success (old workflow, debug + release)
 - Run 2 (26b366e): success
 - Run 3 (1cc4bd3): success - release-only, committed keystore
+- Run 4 (060bc24): success - overhaul
+- Run 5 (6ce4a6a): success - polish, load-shedding event
 
 ## Next ideas
 - Per-location unique props, more VIP types, tutorial voice lines, achievements, upgrade tiers for Moktu visuals
